@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClockTask</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #0f0f0f;
+      --surface:  #181818;
+      --surface2: #202020;
+      --border:   #2c2c2c;
+      --text:     #dedede;
+      --dim:      #717171;
+      --muted:    #3a3a3a;
+      --accent:   #F5B731;
+      --red:      #e85555;
+      --r:        6px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ─────────────────────────────────── */
+    .sidebar {
+      width: 288px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .s-head {
+      padding: 26px 22px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .s-eyebrow {
+      font-size: 9px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    .s-title {
+      font-size: 22px;
+      font-weight: 200;
+      letter-spacing: -.02em;
+    }
+    .s-title span { color: var(--accent); }
+
+    .s-sec {
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--border);
+    }
+    .s-lbl {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    /* mode toggle */
+    .toggle {
+      display: flex;
+      background: var(--surface2);
+      border-radius: var(--r);
+      padding: 3px;
+      gap: 3px;
+    }
+    .t-btn {
+      flex: 1;
+      padding: 7px 8px;
+      background: none;
+      border: none;
+      border-radius: 4px;
+      color: var(--dim);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: .03em;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .t-btn.on { background: var(--accent); color: #111; }
+
+    /* inputs */
+    .row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .col { flex: 1; }
+    label.mini {
+      display: block;
+      font-size: 9px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 4px;
+    }
+    input[type=text],
+    input[type=time],
+    input[type=number] {
+      display: block;
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 12px;
+      padding: 8px 10px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input:focus { border-color: var(--accent); }
+
+    .btn-add {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      padding: 9px;
+      background: var(--accent);
+      color: #111;
+      border: none;
+      border-radius: 5px;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-add:hover { background: #f7c548; }
+
+    /* task list */
+    .list-wrap {
+      flex: 1;
+      padding: 12px 22px 16px;
+      overflow-y: auto;
+    }
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      background: var(--surface2);
+      border-radius: var(--r);
+      margin-bottom: 5px;
+      border: 1px solid transparent;
+      cursor: grab;
+      transition: border-color .15s, opacity .2s;
+      user-select: none;
+    }
+    .task-item:active { cursor: grabbing; }
+    .task-item.dragging { opacity: .35; border-color: var(--accent); }
+    .task-item.drag-over { border-color: var(--accent); border-style: dashed; }
+
+    .grip { color: var(--muted); font-size: 10px; flex-shrink: 0; cursor: grab; }
+    .swatch {
+      width: 13px; height: 13px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      position: relative;
+      cursor: pointer;
+      border: 1.5px solid rgba(255,255,255,.12);
+    }
+    .swatch input[type=color] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+      padding: 0; border: none;
+    }
+    .t-name { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .t-dur  { font-size: 10px; color: var(--dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .t-del  {
+      background: none; border: none; color: var(--muted);
+      font-size: 16px; cursor: pointer; padding: 0 2px; line-height: 1;
+      transition: color .15s; flex-shrink: 0;
+    }
+    .t-del:hover { color: var(--red); }
+
+    /* stats footer */
+    .stats {
+      padding: 14px 22px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 24px;
+      flex-shrink: 0;
+    }
+    .stat-v { font-size: 15px; font-weight: 300; font-variant-numeric: tabular-nums; }
+    .stat-l { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-top: 2px; }
+    .over   { color: var(--red); }
+
+    /* hide util */
+    .hide { display: none !important; }
+
+    /* ── Clock panel ──────────────────────────────── */
+    .main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+    }
+
+    #clockSvg {
+      filter: drop-shadow(0 8px 60px rgba(0,0,0,.9));
+    }
+    .arc-handle { cursor: ew-resize; }
+
+    /* budget name inputs spacing */
+    #budgetNames input { margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════  SIDEBAR  ═══════════════════════ -->
+<div class="sidebar">
+  <div class="s-head">
+    <div class="s-eyebrow">Time Planner</div>
+    <div class="s-title">Clock<span>Task</span></div>
+  </div>
+
+  <!-- Mode -->
+  <div class="s-sec">
+    <div class="s-lbl">Mode</div>
+    <div class="toggle">
+      <button class="t-btn on" id="btnFree"   onclick="setMode('free')">Free Add</button>
+      <button class="t-btn"    id="btnBudget" onclick="setMode('budget')">Budget</button>
+    </div>
+  </div>
+
+  <!-- Start time -->
+  <div class="s-sec">
+    <div class="s-lbl">Start Time</div>
+    <input type="time" id="startInput" />
+  </div>
+
+  <!-- Free panel -->
+  <div class="s-sec" id="freePanel">
+    <div class="s-lbl">Add Task</div>
+    <div style="margin-bottom:8px">
+      <input type="text" id="fName" placeholder="Task name…" />
+    </div>
+    <div class="row">
+      <div class="col">
+        <label class="mini">Hours</label>
+        <input type="number" id="fHours" min="0" max="23" value="0" />
+      </div>
+      <div class="col">
+        <label class="mini">Minutes</label>
+        <input type="number" id="fMins" min="5" max="55" step="5" value="30" />
+      </div>
+    </div>
+    <button class="btn-add" onclick="addFreeTask()">+ Add Task</button>
+  </div>
+
+  <!-- Budget panel -->
+  <div class="s-sec hide" id="budgetPanel">
+    <div class="s-lbl">Time Budget</div>
+    <div class="row">
+      <div class="col">
+        <label class="mini">Hours</label>
+        <input type="number" id="bHours" min="0" max="23" value="2" oninput="syncBudgetUI()" />
+      </div>
+      <div class="col">
+        <label class="mini">Mins</label>
+        <input type="number" id="bMins" min="0" max="55" step="5" value="0" oninput="syncBudgetUI()" />
+      </div>
+      <div class="col">
+        <label class="mini">Tasks</label>
+        <input type="number" id="bCount" min="1" max="12" value="3" oninput="syncBudgetUI()" />
+      </div>
+    </div>
+    <div class="s-lbl" style="margin-top:12px">Task Names</div>
+    <div id="budgetNames"></div>
+    <button class="btn-add" onclick="applyBudget()">Apply Budget</button>
+  </div>
+
+  <!-- Task list -->
+  <div class="list-wrap">
+    <div class="s-lbl">Tasks</div>
+    <div id="taskList"></div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div>
+      <div class="stat-v" id="sTotal">—</div>
+      <div class="stat-l">Total</div>
+    </div>
+    <div id="sBudgetWrap" class="hide">
+      <div class="stat-v" id="sBudget">—</div>
+      <div class="stat-l">Budget</div>
+    </div>
+    <div id="sOverWrap" class="hide">
+      <div class="stat-v over" id="sOver">—</div>
+      <div class="stat-l">Over</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════  CLOCK  ═══════════════════════ -->
+<div class="main">
+  <svg id="clockSvg" viewBox="0 0 500 500" width="500" height="500">
+    <defs>
+      <radialGradient id="faceGrad" cx="48%" cy="42%" r="62%">
+        <stop offset="0%"   stop-color="#252525"/>
+        <stop offset="100%" stop-color="#090909"/>
+      </radialGradient>
+      <radialGradient id="bezelGrad" cx="50%" cy="30%" r="70%">
+        <stop offset="0%"   stop-color="#282828"/>
+        <stop offset="100%" stop-color="#111111"/>
+      </radialGradient>
+    </defs>
+
+    <!-- Bezel -->
+    <circle cx="250" cy="250" r="246" fill="url(#bezelGrad)"/>
+    <circle cx="250" cy="250" r="242" fill="none" stroke="#444" stroke-width="1.5"/>
+    <circle cx="250" cy="250" r="239" fill="none" stroke="#1a1a1a" stroke-width="1"/>
+
+    <!-- Separator rings between arc bands and face -->
+    <circle cx="250" cy="250" r="198" fill="none" stroke="#1f1f1f" stroke-width="1" id="sep1"/>
+    <circle cx="250" cy="250" r="161" fill="none" stroke="#1f1f1f" stroke-width="1" id="sep2"/>
+
+    <!-- Task arc groups (rendered before face so face overlaps slightly) -->
+    <g id="gOuter"></g>   <!-- outer ring: 1st 12h -->
+    <g id="gInner"></g>   <!-- inner ring: 2nd 12h overflow -->
+    <g id="gLabels"></g>
+    <g id="gBudget"></g>
+    <g id="gHandles"></g>
+
+    <!-- Clock face -->
+    <circle cx="250" cy="250" r="158" fill="url(#faceGrad)"/>
+    <circle cx="250" cy="250" r="158" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+
+    <!-- Tick marks & numbers -->
+    <g id="gTicks"></g>
+    <g id="gNums"></g>
+
+    <!-- Clock hands -->
+    <line id="hHour" x1="250" y1="250" x2="250" y2="185"
+          stroke="#e0e0e0" stroke-width="5.5" stroke-linecap="round"/>
+    <line id="hMin"  x1="250" y1="258" x2="250" y2="170"
+          stroke="#e0e0e0" stroke-width="3.5" stroke-linecap="round"/>
+    <line id="hSec"  x1="250" y1="272" x2="250" y2="162"
+          stroke="#F5B731" stroke-width="1.5" stroke-linecap="round"/>
+
+    <!-- Center cap -->
+    <circle cx="250" cy="250" r="6"   fill="#F5B731"/>
+    <circle cx="250" cy="250" r="2.8" fill="#090909"/>
+
+    <!-- Live time readout -->
+    <text id="tNow" x="250" y="310" text-anchor="middle" fill="#2e2e2e"
+          font-family="Helvetica Neue,Arial" font-size="10" letter-spacing=".13em"></text>
+  </svg>
+</div>
+
+<script>
+'use strict';
+
+// ── Geometry constants ────────────────────────────────────────
+const CX = 250, CY = 250;
+// Outer task ring
+const OR_O = 238, OR_I = 202;
+// Inner overflow ring
+const IR_O = 198, IR_I = 164;
+const GAP_DEG = 1.4;  // visual gap between segments
+
+// ── Colour palette ────────────────────────────────────────────
+const PALETTE = [
+  '#F5B731','#5B9BD5','#6EC98C','#E07B5A',
+  '#9B72CF','#4EC9C9','#E0709A','#91C4E0',
+  '#C5D96E','#E0A870'
+];
+
+// ── State ─────────────────────────────────────────────────────
+let S = {
+  mode: 'free',
+  startTime: null,     // Date
+  budget: { hours: 2, mins: 0, count: 3 },
+  tasks: []            // [{id,name,duration(mins),color}]
+};
+
+// ── Persistence ───────────────────────────────────────────────
+const KEY = 'clocktask_v3';
+
+function save() {
+  localStorage.setItem(KEY, JSON.stringify({
+    ...S, startTime: S.startTime?.toISOString()
+  }));
+}
+
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (!d) return;
+    S.mode     = d.mode     || 'free';
+    S.budget   = d.budget   || S.budget;
+    S.tasks    = d.tasks    || [];
+    S.startTime = d.startTime ? new Date(d.startTime) : null;
+  } catch {}
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────
+function init() {
+  load();
+
+  if (!S.startTime) {
+    S.startTime = new Date();
+    S.startTime.setSeconds(0, 0);
+  }
+
+  const si = document.getElementById('startInput');
+  si.value = hhmm(S.startTime);
+  si.addEventListener('change', e => {
+    const [h, m] = e.target.value.split(':').map(Number);
+    S.startTime = new Date();
+    S.startTime.setHours(h, m, 0, 0);
+    save(); redraw(); updateStats();
+  });
+
+  document.getElementById('fName').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addFreeTask();
+  });
+
+  setMode(S.mode, false);
+  document.getElementById('bHours').value = S.budget.hours;
+  document.getElementById('bMins').value  = S.budget.mins;
+  document.getElementById('bCount').value = S.budget.count;
+  syncBudgetUI();
+
+  buildFace();
+  renderList();
+  redraw();
+  updateStats();
+
+  setInterval(tickHands, 1000);
+  tickHands();
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+const p2 = n => String(n).padStart(2, '0');
+function hhmm(d) { return p2(d.getHours()) + ':' + p2(d.getMinutes()); }
+
+function polar(cx, cy, r, deg) {
+  const rad = (deg - 90) * Math.PI / 180;
+  return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+}
+
+function svgEl(tag, a = {}) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(a)) el.setAttribute(k, v);
+  return el;
+}
+
+function minsToAngle(m) { return (m % 720) / 720 * 360; }
+
+function durStr(mins) {
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+// ── Clock face ────────────────────────────────────────────────
+function buildFace() {
+  const tg = document.getElementById('gTicks');
+  const ng = document.getElementById('gNums');
+
+  for (let i = 0; i < 60; i++) {
+    const isH = i % 5  === 0;
+    const isQ = i % 15 === 0;
+    const [x1,y1] = polar(CX, CY, 155, i * 6);
+    const [x2,y2] = polar(CX, CY, isQ ? 139 : isH ? 144 : 149, i * 6);
+    tg.appendChild(svgEl('line', {
+      x1,y1,x2,y2,
+      stroke: isH ? '#7a7a7a' : '#333',
+      'stroke-width': isQ ? 2.5 : isH ? 1.5 : 1,
+      'stroke-linecap': 'round'
+    }));
+  }
+
+  for (let h = 1; h <= 12; h++) {
+    const [x,y] = polar(CX, CY, 122, h * 30);
+    const t = svgEl('text', {
+      x, y, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+      fill: '#bbb', 'font-family': 'Helvetica Neue,Arial',
+      'font-size': h === 12 ? '16' : '14.5', 'font-weight': '300'
+    });
+    t.textContent = h;
+    ng.appendChild(t);
+  }
+}
+
+// ── Hands (live) ──────────────────────────────────────────────
+function tickHands() {
+  const n = new Date();
+  const h = n.getHours() % 12, m = n.getMinutes(), s = n.getSeconds();
+  rotateSvg('hHour', (h + m/60) * 30);
+  rotateSvg('hMin',  (m + s/60) * 6);
+  rotateSvg('hSec',  s * 6);
+  document.getElementById('tNow').textContent =
+    p2(n.getHours()) + ':' + p2(m);
+}
+
+function rotateSvg(id, deg) {
+  document.getElementById(id).setAttribute('transform', `rotate(${deg},${CX},${CY})`);
+}
+
+// ── Mode ──────────────────────────────────────────────────────
+function setMode(m, persist = true) {
+  S.mode = m;
+  document.getElementById('btnFree').classList.toggle('on', m === 'free');
+  document.getElementById('btnBudget').classList.toggle('on', m === 'budget');
+  document.getElementById('freePanel').classList.toggle('hide', m !== 'free');
+  document.getElementById('budgetPanel').classList.toggle('hide', m !== 'budget');
+  document.getElementById('sBudgetWrap').classList.toggle('hide', m !== 'budget');
+  if (persist) { save(); redraw(); updateStats(); }
+}
+
+// ── Free mode ─────────────────────────────────────────────────
+function addFreeTask() {
+  const name = document.getElementById('fName').value.trim() || 'Task';
+  const h  = Math.max(0, parseInt(document.getElementById('fHours').value) || 0);
+  const m  = Math.max(0, parseInt(document.getElementById('fMins').value)  || 0);
+  const dur = h * 60 + m;
+  if (dur < 5) return;
+
+  S.tasks.push({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,5),
+    name, duration: dur,
+    color: PALETTE[S.tasks.length % PALETTE.length]
+  });
+
+  document.getElementById('fName').value  = '';
+  document.getElementById('fHours').value = '0';
+  document.getElementById('fMins').value  = '30';
+
+  save(); renderList(); redraw(); updateStats();
+}
+
+// ── Budget mode ───────────────────────────────────────────────
+function syncBudgetUI() {
+  const h = parseInt(document.getElementById('bHours').value) || 0;
+  const m = parseInt(document.getElementById('bMins').value)  || 0;
+  const c = Math.max(1, Math.min(12, parseInt(document.getElementById('bCount').value) || 1));
+  S.budget = { hours: h, mins: m, count: c };
+
+  const box = document.getElementById('budgetNames');
+  while (box.children.length > c) box.lastChild.remove();
+  while (box.children.length < c) {
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.placeholder = `Task ${box.children.length + 1}`;
+    box.appendChild(inp);
+  }
+}
+
+function applyBudget() {
+  syncBudgetUI();
+  const { hours, mins, count } = S.budget;
+  const total = hours * 60 + mins;
+  const per   = Math.max(5, Math.floor(total / count / 5) * 5);
+  const names = [...document.getElementById('budgetNames').querySelectorAll('input')]
+                .map(i => i.value.trim());
+
+  S.tasks = Array.from({ length: count }, (_, i) => ({
+    id:       S.tasks[i]?.id || `b${i}_${Date.now().toString(36)}`,
+    name:     names[i] || `Task ${i + 1}`,
+    duration: per,
+    color:    S.tasks[i]?.color || PALETTE[i % PALETTE.length]
+  }));
+
+  save(); renderList(); redraw(); updateStats();
+}
+
+// ── Task list + drag-reorder ──────────────────────────────────
+let dragIdx = null;
+
+function renderList() {
+  const list = document.getElementById('taskList');
+  list.innerHTML = '';
+
+  S.tasks.forEach((t, i) => {
+    const div = document.createElement('div');
+    div.className = 'task-item';
+    div.draggable = true;
+    div.dataset.i = i;
+    div.innerHTML = `
+      <span class="grip">⠿</span>
+      <div class="swatch" style="background:${t.color}">
+        <input type="color" value="${t.color}"
+          onchange="setColor('${t.id}',this.value)" />
+      </div>
+      <span class="t-name" title="${t.name}">${t.name}</span>
+      <span class="t-dur">${durStr(t.duration)}</span>
+      <button class="t-del" onclick="delTask('${t.id}')">×</button>
+    `;
+
+    div.addEventListener('dragstart', () => {
+      dragIdx = i;
+      setTimeout(() => div.classList.add('dragging'), 0);
+    });
+    div.addEventListener('dragend', () => {
+      div.classList.remove('dragging');
+      list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    });
+    div.addEventListener('dragover', e => {
+      e.preventDefault();
+      list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      div.classList.add('drag-over');
+    });
+    div.addEventListener('drop', e => {
+      e.preventDefault();
+      if (dragIdx === null || dragIdx === i) return;
+      const [item] = S.tasks.splice(dragIdx, 1);
+      S.tasks.splice(i, 0, item);
+      dragIdx = null;
+      save(); renderList(); redraw();
+    });
+
+    list.appendChild(div);
+  });
+}
+
+function delTask(id) {
+  S.tasks = S.tasks.filter(t => t.id !== id);
+  save(); renderList(); redraw(); updateStats();
+}
+
+function setColor(id, color) {
+  const t = S.tasks.find(t => t.id === id);
+  if (t) { t.color = color; save(); renderList(); redraw(); }
+}
+
+// ── Stats ─────────────────────────────────────────────────────
+function updateStats() {
+  const total = S.tasks.reduce((s, t) => s + t.duration, 0);
+  document.getElementById('sTotal').textContent = total ? durStr(total) : '—';
+
+  if (S.mode === 'budget') {
+    const budget = S.budget.hours * 60 + S.budget.mins;
+    document.getElementById('sBudget').textContent = durStr(budget);
+    const over = total - budget;
+    document.getElementById('sOverWrap').classList.toggle('hide', over <= 0);
+    if (over > 0) document.getElementById('sOver').textContent = '+' + durStr(over);
+  } else {
+    document.getElementById('sOverWrap').classList.add('hide');
+  }
+}
+
+// ── Arc drawing ───────────────────────────────────────────────
+function donutPath(rO, rI, sDeg, eDeg) {
+  if (eDeg - sDeg < .05) return '';
+  const big = (eDeg - sDeg > 180) ? 1 : 0;
+  const [ax,ay] = polar(CX,CY,rO,sDeg);
+  const [bx,by] = polar(CX,CY,rO,eDeg);
+  const [cx2,cy2] = polar(CX,CY,rI,eDeg);
+  const [dx,dy] = polar(CX,CY,rI,sDeg);
+  return `M${ax} ${ay} A${rO} ${rO} 0 ${big} 1 ${bx} ${by} ` +
+         `L${cx2} ${cy2} A${rI} ${rI} 0 ${big} 0 ${dx} ${dy}Z`;
+}
+
+function redraw() {
+  ['gOuter','gInner','gHandles','gLabels','gBudget','sep1','sep2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (id === 'sep1' || id === 'sep2') return; // keep separator circles
+    el.innerHTML = '';
+  });
+
+  // Restore separators (cleared above would remove them; skip clearing)
+  // (they're <circle> elements in SVG, not in these groups — already safe)
+
+  if (!S.startTime || S.tasks.length === 0) return;
+
+  const startAbs = S.startTime.getHours() * 60 + S.startTime.getMinutes();
+  const budgetMins = S.mode === 'budget'
+    ? S.budget.hours * 60 + S.budget.mins
+    : Infinity;
+  const budgetEnd = startAbs + budgetMins;
+
+  if (budgetMins !== Infinity) drawBudgetMarker(budgetEnd);
+
+  let cursor = startAbs;
+  S.tasks.forEach((task, i) => {
+    const tStart = cursor;
+    const tEnd   = cursor + task.duration;
+
+    // Split normal vs spillover at budget boundary
+    let normDur = task.duration, spillDur = 0;
+    if (budgetMins !== Infinity) {
+      if (tStart >= budgetEnd) {
+        spillDur = task.duration; normDur = 0;
+      } else if (tEnd > budgetEnd) {
+        normDur  = budgetEnd - tStart;
+        spillDur = task.duration - normDur;
+      }
+    }
+
+    if (normDur  > 0) drawSpan(tStart,             normDur,  task.color, 1,    task.name, i);
+    if (spillDur > 0) drawSpan(tStart + normDur, spillDur, '#e85555',  0.88, '⚠ ' + task.name, -1);
+
+    // Resize handle between tasks
+    if (i < S.tasks.length - 1) addHandle(tEnd, i);
+
+    cursor = tEnd;
+  });
+}
+
+function drawSpan(startAbs, dur, color, opacity, label, taskIdx) {
+  let rem = dur, pos = startAbs;
+  while (rem > 0) {
+    const lapN  = Math.floor(pos / 720);
+    if (lapN > 1) break;
+
+    const lapPos = pos % 720;
+    const lapEnd = (lapN + 1) * 720;
+    const seg    = Math.min(rem, lapEnd - pos);
+
+    const sDeg = minsToAngle(lapPos) + GAP_DEG / 2;
+    const eDeg = minsToAngle(lapPos + seg) - GAP_DEG / 2;
+    if (eDeg > sDeg) {
+      const [rO, rI] = lapN === 0 ? [OR_O, OR_I] : [IR_O, IR_I];
+      const g = document.getElementById(lapN === 0 ? 'gOuter' : 'gInner');
+
+      const path = svgEl('path', {
+        d: donutPath(rO, rI, sDeg, eDeg),
+        fill: color, opacity
+      });
+      const tip = svgEl('title');
+      tip.textContent = label + ' · ' + durStr(dur);
+      path.appendChild(tip);
+      g.appendChild(path);
+
+      // Label if arc is wide enough
+      const sweep = eDeg - sDeg;
+      if (sweep >= 14 && label && taskIdx >= 0) {
+        const midDeg = sDeg + sweep / 2;
+        const midR   = (rO + rI) / 2;
+        const [lx,ly] = polar(CX, CY, midR, midDeg);
+
+        // Determine readable rotation (avoid upside-down text)
+        const rotDeg = midDeg > 180 ? midDeg + 180 : midDeg;
+
+        const maxCh = sweep > 55 ? 14 : sweep > 35 ? 8 : 5;
+        const txt = label.length > maxCh ? label.slice(0, maxCh - 1) + '…' : label;
+
+        const tEl = svgEl('text', {
+          x: lx, y: ly,
+          'text-anchor': 'middle',
+          'dominant-baseline': 'central',
+          fill: 'rgba(255,255,255,0.85)',
+          'font-family': 'Helvetica Neue,Arial',
+          'font-size': sweep > 40 ? '9' : '7.5',
+          'font-weight': '500',
+          transform: `rotate(${rotDeg},${lx},${ly})`,
+          'pointer-events': 'none'
+        });
+        tEl.textContent = txt;
+        document.getElementById('gLabels').appendChild(tEl);
+      }
+    }
+
+    pos += seg; rem -= seg;
+  }
+}
+
+// ── Budget end marker ─────────────────────────────────────────
+function drawBudgetMarker(endAbs) {
+  const lapN   = Math.floor(endAbs / 720);
+  if (lapN > 1) return;
+  const lapPos = endAbs % 720;
+  const deg    = minsToAngle(lapPos);
+  const [rO, rI] = lapN === 0 ? [OR_O, OR_I] : [IR_O, IR_I];
+
+  const [x1,y1] = polar(CX,CY, rI - 3, deg);
+  const [x2,y2] = polar(CX,CY, rO + 3, deg);
+
+  const g = document.getElementById('gBudget');
+  g.appendChild(svgEl('line', {
+    x1,y1,x2,y2,
+    stroke: '#e85555', 'stroke-width': '2',
+    'stroke-dasharray': '4 3', 'stroke-linecap': 'round'
+  }));
+
+  // "END" label just outside the ring
+  const [tx,ty] = polar(CX,CY, rO + 16, deg);
+  const endTxt = svgEl('text', {
+    x: tx, y: ty, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+    fill: '#e85555', 'font-family': 'Helvetica Neue,Arial',
+    'font-size': '8', 'font-weight': '600', 'letter-spacing': '.06em'
+  });
+  endTxt.textContent = 'END';
+  g.appendChild(endTxt);
+}
+
+// ── Resize handles ────────────────────────────────────────────
+function addHandle(endAbs, taskIdx) {
+  const lapN   = Math.floor(endAbs / 720);
+  if (lapN > 1) return;
+  const lapPos = endAbs % 720;
+  const deg    = minsToAngle(lapPos);
+  const [rO, rI] = lapN === 0 ? [OR_O, OR_I] : [IR_O, IR_I];
+  const midR   = (rO + rI) / 2;
+  const [hx,hy] = polar(CX,CY, midR, deg);
+
+  const c = svgEl('circle', {
+    cx: hx, cy: hy, r: 7,
+    fill: 'white', stroke: '#111', 'stroke-width': 2,
+    class: 'arc-handle', 'data-ti': taskIdx
+  });
+  c.addEventListener('mousedown', e => beginDrag(e, taskIdx));
+  c.addEventListener('touchstart', e => beginDrag(e, taskIdx), { passive: false });
+
+  document.getElementById('gHandles').appendChild(c);
+}
+
+// ── Drag resize ───────────────────────────────────────────────
+let drag = null;
+
+function beginDrag(e, taskIdx) {
+  e.preventDefault(); e.stopPropagation();
+  drag = { taskIdx };
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('mouseup',   endDrag);
+  document.addEventListener('touchmove', onDragMove, { passive: false });
+  document.addEventListener('touchend',  endDrag);
+}
+
+function onDragMove(e) {
+  if (!drag) return;
+  e.preventDefault();
+
+  const svg  = document.getElementById('clockSvg');
+  const rect = svg.getBoundingClientRect();
+  const px = e.touches ? e.touches[0].clientX : e.clientX;
+  const py = e.touches ? e.touches[0].clientY : e.clientY;
+
+  // Convert to SVG-space relative to centre
+  const svgScale = 500 / rect.width;
+  const dx = (px - rect.left) * svgScale - CX;
+  const dy = (py - rect.top)  * svgScale - CY;
+
+  // Angle → clock minutes (0 = 12 o'clock, clockwise)
+  let deg = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+  if (deg < 0) deg += 360;
+  const targetMins = deg / 360 * 720; // 0-720
+
+  // Compute where the dragged task starts (in 12h space)
+  const startAbs  = S.startTime.getHours() * 60 + S.startTime.getMinutes();
+  let cursor = startAbs;
+  for (let i = 0; i < drag.taskIdx; i++) cursor += S.tasks[i].duration;
+  const taskStart12 = cursor % 720;
+
+  let newDur = targetMins - taskStart12;
+  if (newDur <= 0) newDur += 720;
+  newDur = Math.round(newDur / 5) * 5;
+  newDur = Math.max(5, newDur);
+
+  const delta = newDur - S.tasks[drag.taskIdx].duration;
+  if (delta === 0) return;
+
+  const idx = drag.taskIdx;
+
+  if (delta > 0) {
+    // Expanding: absorb from subsequent tasks
+    let toTake = delta;
+    for (let i = idx + 1; i < S.tasks.length && toTake > 0; i++) {
+      const canTake = Math.max(0, S.tasks[i].duration - 5);
+      const taken   = Math.min(toTake, canTake);
+      S.tasks[i].duration -= taken;
+      toTake -= taken;
+    }
+    if (toTake > 0) return; // nowhere to push into
+  } else {
+    // Shrinking: give to next task
+    if (idx + 1 < S.tasks.length) {
+      S.tasks[idx + 1].duration += Math.abs(delta);
+    }
+  }
+
+  S.tasks[idx].duration = newDur;
+  save(); renderList(); redraw(); updateStats();
+}
+
+function endDrag() {
+  drag = null;
+  document.removeEventListener('mousemove', onDragMove);
+  document.removeEventListener('mouseup',   endDrag);
+  document.removeEventListener('touchmove', onDragMove);
+  document.removeEventListener('touchend',  endDrag);
+}
+
+// ── Go! ───────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
