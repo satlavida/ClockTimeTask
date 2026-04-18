@@ -219,6 +219,45 @@
 
     /* budget name inputs spacing */
     #budgetNames input { margin-bottom: 6px; }
+
+    /* budget sub-toggle */
+    .b-sub-toggle {
+      display: flex;
+      background: var(--surface2);
+      border-radius: 5px;
+      padding: 2px;
+      gap: 2px;
+      margin-bottom: 12px;
+    }
+    .b-sub-btn {
+      flex: 1; padding: 5px 6px; background: none; border: none;
+      border-radius: 3px; color: var(--dim); font-family: inherit;
+      font-size: 10px; font-weight: 500; cursor: pointer; transition: all .15s;
+    }
+    .b-sub-btn.on { background: var(--surface); color: var(--text); }
+
+    /* hover popover */
+    #popover {
+      position: fixed;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      pointer-events: none;
+      display: none;
+      z-index: 200;
+      min-width: 168px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.75);
+    }
+    .pop-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .pop-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .pop-name { font-size: 12px; font-weight: 500; }
+    .pop-row {
+      display: flex; justify-content: space-between;
+      align-items: baseline; gap: 12px;
+      font-size: 10px; color: var(--dim); margin-bottom: 4px;
+    }
+    .pop-val { color: var(--text); font-variant-numeric: tabular-nums; font-size: 11px; }
   </style>
 </head>
 <body>
@@ -266,8 +305,13 @@
 
   <!-- Budget panel -->
   <div class="s-sec hide" id="budgetPanel">
-    <div class="s-lbl">Time Budget</div>
-    <div class="row">
+    <div class="s-lbl">Limit by</div>
+    <div class="b-sub-toggle">
+      <button class="b-sub-btn on" id="bBtnDur"     onclick="setBudgetInputMode('duration')">Duration</button>
+      <button class="b-sub-btn"    id="bBtnEndTime" onclick="setBudgetInputMode('endtime')">End Time</button>
+    </div>
+    <!-- Duration inputs -->
+    <div id="bDurInputs" class="row">
       <div class="col">
         <label class="mini">Hours</label>
         <input type="number" id="bHours" min="0" max="23" value="2" oninput="syncBudgetUI()" />
@@ -276,12 +320,18 @@
         <label class="mini">Mins</label>
         <input type="number" id="bMins" min="0" max="55" step="5" value="0" oninput="syncBudgetUI()" />
       </div>
-      <div class="col">
-        <label class="mini">Tasks</label>
-        <input type="number" id="bCount" min="1" max="12" value="3" oninput="syncBudgetUI()" />
-      </div>
     </div>
-    <div class="s-lbl" style="margin-top:12px">Task Names</div>
+    <!-- End time input -->
+    <div id="bEndTimeInput" class="hide" style="margin-bottom:8px">
+      <label class="mini">End Time</label>
+      <input type="time" id="bEndTime" oninput="syncBudgetUI()" />
+    </div>
+    <!-- Task count -->
+    <div style="margin-bottom:8px">
+      <label class="mini">Number of Tasks</label>
+      <input type="number" id="bCount" min="1" max="12" value="3" oninput="syncBudgetUI()" />
+    </div>
+    <div class="s-lbl" style="margin-top:4px">Task Names</div>
     <div id="budgetNames"></div>
     <button class="btn-add" onclick="applyBudget()">Apply Budget</button>
   </div>
@@ -305,6 +355,10 @@
     <div id="sOverWrap" class="hide">
       <div class="stat-v over" id="sOver">—</div>
       <div class="stat-l">Over</div>
+    </div>
+    <div>
+      <div class="stat-v" id="sEnds">—</div>
+      <div class="stat-l">Ends at</div>
     </div>
   </div>
 </div>
@@ -365,6 +419,17 @@
   </svg>
 </div>
 
+<!-- Hover popover -->
+<div id="popover">
+  <div class="pop-header">
+    <div class="pop-dot" id="popDot"></div>
+    <div class="pop-name" id="popName"></div>
+  </div>
+  <div class="pop-row"><span>Start</span>    <span class="pop-val" id="popStart">—</span></div>
+  <div class="pop-row"><span>End</span>      <span class="pop-val" id="popEnd">—</span></div>
+  <div class="pop-row"><span>Duration</span> <span class="pop-val" id="popDur">—</span></div>
+</div>
+
 <script>
 'use strict';
 
@@ -387,12 +452,12 @@ const PALETTE = [
 let S = {
   mode: 'free',
   startTime: null,     // Date
-  budget: { hours: 2, mins: 0, count: 3 },
+  budget: { inputMode: 'duration', hours: 2, mins: 0, endTimeStr: null, count: 3 },
   tasks: []            // [{id,name,duration(mins),color}]
 };
 
 // ── Persistence ───────────────────────────────────────────────
-const KEY = 'clocktask_v3';
+const KEY = 'clocktask_v4';
 
 function save() {
   localStorage.setItem(KEY, JSON.stringify({
@@ -405,7 +470,7 @@ function load() {
     const d = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (!d) return;
     S.mode     = d.mode     || 'free';
-    S.budget   = d.budget   || S.budget;
+    S.budget   = { ...S.budget, ...(d.budget || {}) };
     S.tasks    = d.tasks    || [];
     S.startTime = d.startTime ? new Date(d.startTime) : null;
   } catch {}
@@ -437,7 +502,14 @@ function init() {
   document.getElementById('bHours').value = S.budget.hours;
   document.getElementById('bMins').value  = S.budget.mins;
   document.getElementById('bCount').value = S.budget.count;
+  if (S.budget.inputMode === 'endtime') setBudgetInputMode('endtime', false);
+  if (S.budget.endTimeStr) document.getElementById('bEndTime').value = S.budget.endTimeStr;
   syncBudgetUI();
+
+  // Popover
+  const svgEl2 = document.getElementById('clockSvg');
+  svgEl2.addEventListener('mousemove', onArcHover);
+  svgEl2.addEventListener('mouseleave', hidePop);
 
   buildFace();
   renderList();
@@ -468,6 +540,25 @@ function minsToAngle(m) { return (m % 720) / 720 * 360; }
 function durStr(mins) {
   const h = Math.floor(mins / 60), m = mins % 60;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function absToTime(absMins) {
+  const h = Math.floor(absMins / 60) % 24;
+  const m = absMins % 60;
+  return p2(h) + ':' + p2(m);
+}
+
+function getBudgetMins() {
+  if (S.mode !== 'budget') return Infinity;
+  if (S.budget.inputMode === 'endtime' && S.budget.endTimeStr) {
+    const [eh, em] = S.budget.endTimeStr.split(':').map(Number);
+    const endAbs   = eh * 60 + em;
+    const startAbs = S.startTime.getHours() * 60 + S.startTime.getMinutes();
+    let diff = endAbs - startAbs;
+    if (diff <= 0) diff += 1440; // crosses midnight
+    return diff;
+  }
+  return S.budget.hours * 60 + S.budget.mins;
 }
 
 // ── Clock face ────────────────────────────────────────────────
@@ -548,11 +639,21 @@ function addFreeTask() {
 }
 
 // ── Budget mode ───────────────────────────────────────────────
+function setBudgetInputMode(mode, doSave = true) {
+  S.budget.inputMode = mode;
+  document.getElementById('bBtnDur').classList.toggle('on', mode === 'duration');
+  document.getElementById('bBtnEndTime').classList.toggle('on', mode === 'endtime');
+  document.getElementById('bDurInputs').classList.toggle('hide', mode !== 'duration');
+  document.getElementById('bEndTimeInput').classList.toggle('hide', mode !== 'endtime');
+  if (doSave) { syncBudgetUI(); redraw(); updateStats(); }
+}
+
 function syncBudgetUI() {
-  const h = parseInt(document.getElementById('bHours').value) || 0;
-  const m = parseInt(document.getElementById('bMins').value)  || 0;
-  const c = Math.max(1, Math.min(12, parseInt(document.getElementById('bCount').value) || 1));
-  S.budget = { hours: h, mins: m, count: c };
+  const h  = parseInt(document.getElementById('bHours').value) || 0;
+  const m  = parseInt(document.getElementById('bMins').value)  || 0;
+  const et = document.getElementById('bEndTime').value || null;
+  const c  = Math.max(1, Math.min(12, parseInt(document.getElementById('bCount').value) || 1));
+  S.budget = { ...S.budget, hours: h, mins: m, endTimeStr: et, count: c };
 
   const box = document.getElementById('budgetNames');
   while (box.children.length > c) box.lastChild.remove();
@@ -566,9 +667,9 @@ function syncBudgetUI() {
 
 function applyBudget() {
   syncBudgetUI();
-  const { hours, mins, count } = S.budget;
-  const total = hours * 60 + mins;
-  const per   = Math.max(5, Math.floor(total / count / 5) * 5);
+  const { count } = S.budget;
+  const total = getBudgetMins();
+  const per   = total < Infinity ? Math.max(5, Math.floor(total / count / 5) * 5) : 30;
   const names = [...document.getElementById('budgetNames').querySelectorAll('input')]
                 .map(i => i.value.trim());
 
@@ -646,9 +747,17 @@ function updateStats() {
   const total = S.tasks.reduce((s, t) => s + t.duration, 0);
   document.getElementById('sTotal').textContent = total ? durStr(total) : '—';
 
+  // Ends at
+  if (total > 0 && S.startTime) {
+    const startAbs = S.startTime.getHours() * 60 + S.startTime.getMinutes();
+    document.getElementById('sEnds').textContent = absToTime(startAbs + total);
+  } else {
+    document.getElementById('sEnds').textContent = '—';
+  }
+
   if (S.mode === 'budget') {
-    const budget = S.budget.hours * 60 + S.budget.mins;
-    document.getElementById('sBudget').textContent = durStr(budget);
+    const budget = getBudgetMins();
+    document.getElementById('sBudget').textContent = budget < Infinity ? durStr(budget) : '—';
     const over = total - budget;
     document.getElementById('sOverWrap').classList.toggle('hide', over <= 0);
     if (over > 0) document.getElementById('sOver').textContent = '+' + durStr(over);
@@ -656,6 +765,9 @@ function updateStats() {
     document.getElementById('sOverWrap').classList.add('hide');
   }
 }
+
+// ── Task timings (populated by redraw, used by popover) ───────
+let taskTimings = []; // [{startAbs, endAbs}] parallel to S.tasks
 
 // ── Arc drawing ───────────────────────────────────────────────
 function donutPath(rO, rI, sDeg, eDeg) {
@@ -681,18 +793,18 @@ function redraw() {
 
   if (!S.startTime || S.tasks.length === 0) return;
 
-  const startAbs = S.startTime.getHours() * 60 + S.startTime.getMinutes();
-  const budgetMins = S.mode === 'budget'
-    ? S.budget.hours * 60 + S.budget.mins
-    : Infinity;
-  const budgetEnd = startAbs + budgetMins;
+  const startAbs  = S.startTime.getHours() * 60 + S.startTime.getMinutes();
+  const budgetMins = getBudgetMins();
+  const budgetEnd  = startAbs + budgetMins;
 
   if (budgetMins !== Infinity) drawBudgetMarker(budgetEnd);
 
+  taskTimings = [];
   let cursor = startAbs;
   S.tasks.forEach((task, i) => {
     const tStart = cursor;
     const tEnd   = cursor + task.duration;
+    taskTimings.push({ startAbs: tStart, endAbs: tEnd });
 
     // Split normal vs spillover at budget boundary
     let normDur = task.duration, spillDur = 0;
@@ -731,10 +843,9 @@ function drawSpan(startAbs, dur, color, opacity, label, taskIdx) {
       const [rO, rI] = lapN === 0 ? [OR_O, OR_I] : [IR_O, IR_I];
       const g = document.getElementById(lapN === 0 ? 'gOuter' : 'gInner');
 
-      const path = svgEl('path', {
-        d: donutPath(rO, rI, sDeg, eDeg),
-        fill: color, opacity
-      });
+      const pathAttrs = { d: donutPath(rO, rI, sDeg, eDeg), fill: color, opacity };
+      if (taskIdx >= 0) pathAttrs['data-ti'] = taskIdx;
+      const path = svgEl('path', pathAttrs);
       const tip = svgEl('title');
       tip.textContent = label + ' · ' + durStr(dur);
       path.appendChild(tip);
@@ -897,6 +1008,37 @@ function endDrag() {
   document.removeEventListener('mouseup',   endDrag);
   document.removeEventListener('touchmove', onDragMove);
   document.removeEventListener('touchend',  endDrag);
+}
+
+// ── Popover ───────────────────────────────────────────────────
+function onArcHover(e) {
+  const path = e.target.closest('path[data-ti]');
+  if (!path) { hidePop(); return; }
+  const ti = parseInt(path.dataset.ti);
+  if (isNaN(ti) || !taskTimings[ti] || !S.tasks[ti]) { hidePop(); return; }
+
+  const task = S.tasks[ti];
+  const { startAbs, endAbs } = taskTimings[ti];
+
+  document.getElementById('popDot').style.background  = task.color;
+  document.getElementById('popName').textContent       = task.name;
+  document.getElementById('popStart').textContent      = absToTime(startAbs);
+  document.getElementById('popEnd').textContent        = absToTime(endAbs);
+  document.getElementById('popDur').textContent        = durStr(task.duration);
+
+  const pop = document.getElementById('popover');
+  pop.style.display = 'block';
+
+  // Keep popover inside viewport
+  const pw = 180, ph = 100;
+  const x  = e.clientX + 18;
+  const y  = e.clientY - 14;
+  pop.style.left = (x + pw > window.innerWidth  ? e.clientX - pw - 8 : x) + 'px';
+  pop.style.top  = (y + ph > window.innerHeight ? e.clientY - ph - 8 : y) + 'px';
+}
+
+function hidePop() {
+  document.getElementById('popover').style.display = 'none';
 }
 
 // ── Go! ───────────────────────────────────────────────────────
