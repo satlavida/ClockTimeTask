@@ -207,15 +207,199 @@
     .main {
       flex: 1;
       display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      overflow: hidden;
+    }
+    .clock-wrap {
+      flex: 1;
+      display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--bg);
+      min-height: 0;
     }
 
     #clockSvg {
       filter: drop-shadow(0 8px 60px rgba(0,0,0,.9));
+      max-height: 100%;
+      max-width: 100%;
     }
     .arc-handle { cursor: ew-resize; }
+
+    /* ── Now board ───────────────────────────────── */
+    .now-board {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      gap: 20px;
+    }
+    .nb-left { flex: 1; min-width: 0; }
+    .nb-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .18em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+    .nb-live-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: nbpulse 2s ease-in-out infinite;
+    }
+    @keyframes nbpulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.2; }
+    }
+    .nb-live.idle { color: var(--muted); }
+    .nb-live.idle .nb-live-dot { background: var(--muted); animation: none; }
+    .nb-task-name {
+      font-size: 30px;
+      font-weight: 200;
+      letter-spacing: -.025em;
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .nb-task-name.empty { color: var(--dim); font-size: 20px; }
+    .nb-next {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      font-size: 11px;
+    }
+    .nb-next-lbl {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .nb-next-name { color: var(--dim); }
+    .nb-next-in   { color: var(--muted); font-size: 10px; }
+
+    .nb-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .nb-remaining {
+      font-size: 38px;
+      font-weight: 200;
+      letter-spacing: -.03em;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent);
+      line-height: 1;
+      text-align: right;
+    }
+    .nb-rem-lbl {
+      font-size: 9px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--dim);
+      text-align: right;
+    }
+    .nb-actions {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .nb-settings-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--dim);
+      font-size: 13px;
+      width: 28px; height: 28px;
+      cursor: pointer;
+      transition: all .15s;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .nb-settings-btn:hover { border-color: var(--dim); color: var(--text); }
+
+    /* ── Settings modal ──────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.72);
+      z-index: 400;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 400px;
+      max-width: calc(100vw - 40px);
+      box-shadow: 0 24px 80px rgba(0,0,0,.85);
+    }
+    .modal-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-title { font-size: 17px; font-weight: 300; }
+    .modal-close {
+      background: none; border: none; color: var(--dim);
+      font-size: 22px; cursor: pointer; line-height: 1;
+      transition: color .15s; padding: 0;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-body { padding: 8px 24px 24px; }
+    .modal-section-lbl {
+      font-size: 9px; font-weight: 600;
+      letter-spacing: .15em; text-transform: uppercase;
+      color: var(--muted); margin: 18px 0 10px;
+    }
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      gap: 16px;
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-name { font-size: 13px; margin-bottom: 3px; }
+    .setting-desc { font-size: 10px; color: var(--dim); line-height: 1.4; }
+    /* toggle switch */
+    .tog { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .tog input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .tog-track {
+      position: absolute; inset: 0;
+      background: var(--border); border-radius: 20px;
+      cursor: pointer; transition: background .2s;
+    }
+    .tog-track::after {
+      content: '';
+      position: absolute;
+      width: 14px; height: 14px;
+      border-radius: 50%; background: #888;
+      top: 3px; left: 3px;
+      transition: transform .2s, background .2s;
+    }
+    .tog input:checked + .tog-track { background: var(--accent); }
+    .tog input:checked + .tog-track::after { transform: translateX(16px); background: #111; }
 
     /* budget name inputs spacing */
     #budgetNames input { margin-bottom: 6px; }
@@ -365,6 +549,31 @@
 
 <!-- ═══════════════════════  CLOCK  ═══════════════════════ -->
 <div class="main">
+
+  <!-- ── Now Board ─────────────────────────────────── -->
+  <div class="now-board" id="nowBoard">
+    <div class="nb-left">
+      <div class="nb-live" id="nbLive"><span class="nb-live-dot"></span>Live</div>
+      <div class="nb-task-name" id="nbName">No active task</div>
+      <div class="nb-next" id="nbNext" style="visibility:hidden">
+        <span class="nb-next-lbl">Next</span>
+        <span class="nb-next-name" id="nbNextName"></span>
+        <span class="nb-next-in"  id="nbNextIn"></span>
+      </div>
+    </div>
+    <div class="nb-right">
+      <div id="nbRemWrap">
+        <div class="nb-remaining" id="nbRem"></div>
+        <div class="nb-rem-lbl"   id="nbRemLbl"></div>
+      </div>
+      <div class="nb-actions">
+        <button class="nb-settings-btn" onclick="openSettings()" title="Settings">⚙</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Clock ─────────────────────────────────────── -->
+  <div class="clock-wrap">
   <svg id="clockSvg" viewBox="0 0 500 500" width="500" height="500">
     <defs>
       <radialGradient id="faceGrad" cx="48%" cy="42%" r="62%">
@@ -417,6 +626,53 @@
     <text id="tNow" x="250" y="310" text-anchor="middle" fill="#2e2e2e"
           font-family="Helvetica Neue,Arial" font-size="10" letter-spacing=".13em"></text>
   </svg>
+  </div><!-- /.clock-wrap -->
+</div><!-- /.main -->
+
+<!-- ═══════════════════════  SETTINGS MODAL  ════════════════ -->
+<div class="modal-overlay" id="settingsOverlay" onclick="closeSettingsOverlay(event)">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title">Settings</div>
+      <button class="modal-close" onclick="closeSettings()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section-lbl">Current Task Board</div>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-name">Show time remaining</div>
+          <div class="setting-desc">Countdown displayed on the board while a task is active</div>
+        </div>
+        <label class="tog">
+          <input type="checkbox" id="setShowRem" onchange="applySetting('showTimeRemaining', this.checked)" />
+          <div class="tog-track"></div>
+        </label>
+      </div>
+
+      <div class="modal-section-lbl">Coming soon</div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-name" style="color:var(--dim)">Sound alerts</div>
+          <div class="setting-desc">Play a tone when a task ends</div>
+        </div>
+        <label class="tog">
+          <input type="checkbox" disabled />
+          <div class="tog-track" style="opacity:.35;cursor:not-allowed"></div>
+        </label>
+      </div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-name" style="color:var(--dim)">24-hour clock face</div>
+          <div class="setting-desc">Display a 24 h dial instead of 12 h</div>
+        </div>
+        <label class="tog">
+          <input type="checkbox" disabled />
+          <div class="tog-track" style="opacity:.35;cursor:not-allowed"></div>
+        </label>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Hover popover -->
@@ -453,7 +709,8 @@ let S = {
   mode: 'free',
   startTime: null,     // Date
   budget: { inputMode: 'duration', hours: 2, mins: 0, endTimeStr: null, count: 3 },
-  tasks: []            // [{id,name,duration(mins),color}]
+  tasks: [],           // [{id,name,duration(mins),color}]
+  settings: { showTimeRemaining: true }
 };
 
 // ── Persistence ───────────────────────────────────────────────
@@ -469,9 +726,10 @@ function load() {
   try {
     const d = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (!d) return;
-    S.mode     = d.mode     || 'free';
-    S.budget   = { ...S.budget, ...(d.budget || {}) };
-    S.tasks    = d.tasks    || [];
+    S.mode      = d.mode     || 'free';
+    S.budget    = { ...S.budget,   ...(d.budget   || {}) };
+    S.settings  = { ...S.settings, ...(d.settings || {}) };
+    S.tasks     = d.tasks    || [];
     S.startTime = d.startTime ? new Date(d.startTime) : null;
   } catch {}
 }
@@ -515,6 +773,12 @@ function init() {
   renderList();
   redraw();
   updateStats();
+
+  // Sync settings toggle initial state
+  document.getElementById('setShowRem').checked = S.settings.showTimeRemaining;
+
+  // Escape key closes modal
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
 
   setInterval(tickHands, 1000);
   tickHands();
@@ -600,6 +864,99 @@ function tickHands() {
   rotateSvg('hSec',  s * 6);
   document.getElementById('tNow').textContent =
     p2(n.getHours()) + ':' + p2(m);
+  updateBoard();
+}
+
+// ── Now board ─────────────────────────────────────────────────
+function getCurrentTask() {
+  if (!S.startTime || S.tasks.length === 0) return null;
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  const startAbs = S.startTime.getHours() * 60 + S.startTime.getMinutes();
+
+  let cursor = startAbs;
+  for (let i = 0; i < S.tasks.length; i++) {
+    const tEnd = cursor + S.tasks[i].duration;
+    if (nowMins >= cursor && nowMins < tEnd) {
+      return {
+        task:         S.tasks[i],
+        endAbs:       tEnd,
+        remSecs:      Math.max(0, (tEnd - nowMins) * 60),
+        nextTask:     S.tasks[i + 1] || null,
+        nextInMins:   Math.ceil(tEnd - nowMins)
+      };
+    }
+    cursor = tEnd;
+  }
+  return null;
+}
+
+function updateBoard() {
+  const info    = getCurrentTask();
+  const liveEl  = document.getElementById('nbLive');
+  const nameEl  = document.getElementById('nbName');
+  const nextEl  = document.getElementById('nbNext');
+  const remEl   = document.getElementById('nbRem');
+  const remLbl  = document.getElementById('nbRemLbl');
+  const remWrap = document.getElementById('nbRemWrap');
+
+  if (!info) {
+    liveEl.className = 'nb-live idle';
+    liveEl.querySelector('.nb-live-dot').style.display = 'none';
+    liveEl.lastChild.textContent = ' Idle';
+    nameEl.textContent = 'No active task';
+    nameEl.className   = 'nb-task-name empty';
+    nextEl.style.visibility = 'hidden';
+    remEl.textContent  = '';
+    remLbl.textContent = '';
+    return;
+  }
+
+  liveEl.className = 'nb-live';
+  liveEl.querySelector('.nb-live-dot').style.display = '';
+  liveEl.lastChild.textContent = ' Live';
+  nameEl.textContent = info.task.name;
+  nameEl.className   = 'nb-task-name';
+
+  // Remaining countdown
+  const showRem = S.settings.showTimeRemaining;
+  remWrap.style.visibility = showRem ? 'visible' : 'hidden';
+  if (showRem) {
+    const rm = Math.floor(info.remSecs / 60);
+    const rs = Math.floor(info.remSecs % 60);
+    remEl.textContent  = rm > 0 ? `${rm}m ${p2(rs)}s` : `${p2(rs)}s`;
+    remLbl.textContent = 'remaining';
+  }
+
+  // Next task
+  if (info.nextTask) {
+    nextEl.style.visibility = 'visible';
+    document.getElementById('nbNextName').textContent = info.nextTask.name;
+    document.getElementById('nbNextIn').textContent   =
+      `· in ${info.nextInMins}m`;
+  } else {
+    nextEl.style.visibility = 'hidden';
+  }
+}
+
+// ── Settings ──────────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('setShowRem').checked = S.settings.showTimeRemaining;
+  document.getElementById('settingsOverlay').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('open');
+}
+
+function closeSettingsOverlay(e) {
+  if (e.target === document.getElementById('settingsOverlay')) closeSettings();
+}
+
+function applySetting(key, value) {
+  S.settings[key] = value;
+  save();
+  updateBoard();
 }
 
 function rotateSvg(id, deg) {
