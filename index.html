@@ -188,6 +188,53 @@
     }
     .t-del:hover { color: var(--red); }
 
+    .t-name-edit {
+      flex: 1; min-width: 0;
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      border-radius: 3px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 12px;
+      padding: 2px 6px;
+      outline: none;
+    }
+
+    .list-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .list-hd .s-lbl { margin-bottom: 0; }
+    .btn-clear {
+      background: none; border: none;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 9px; font-weight: 600;
+      letter-spacing: .1em; text-transform: uppercase;
+      cursor: pointer;
+      padding: 2px 6px; border-radius: 3px;
+      transition: color .15s, background .15s;
+    }
+    .btn-clear:hover { color: var(--red); background: rgba(232,85,85,.08); }
+
+    .btn-now {
+      display: block; width: 100%;
+      margin-top: 8px;
+      padding: 6px 10px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--dim);
+      font-family: inherit;
+      font-size: 10px; font-weight: 600;
+      letter-spacing: .08em; text-transform: uppercase;
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-now:hover { border-color: var(--accent); color: var(--accent); }
+
     /* stats footer */
     .stats {
       padding: 14px 22px;
@@ -466,6 +513,7 @@
   <div class="s-sec">
     <div class="s-lbl">Start Time</div>
     <input type="time" id="startInput" />
+    <button class="btn-now" onclick="resetStartToNow()">Reset to Now</button>
   </div>
 
   <!-- Free panel -->
@@ -522,7 +570,10 @@
 
   <!-- Task list -->
   <div class="list-wrap">
-    <div class="s-lbl">Tasks</div>
+    <div class="list-hd">
+      <div class="s-lbl">Tasks</div>
+      <button class="btn-clear" onclick="clearAllTasks()">Clear all</button>
+    </div>
     <div id="taskList"></div>
   </div>
 
@@ -963,6 +1014,15 @@ function rotateSvg(id, deg) {
   document.getElementById(id).setAttribute('transform', `rotate(${deg},${CX},${CY})`);
 }
 
+// ── Reset start time ─────────────────────────────────────────
+function resetStartToNow() {
+  const now = new Date();
+  now.setSeconds(0, 0);
+  S.startTime = now;
+  document.getElementById('startInput').value = hhmm(now);
+  save(); redraw(); updateStats();
+}
+
 // ── Mode ──────────────────────────────────────────────────────
 function setMode(m, persist = true) {
   S.mode = m;
@@ -1063,6 +1123,11 @@ function renderList() {
       <button class="t-del" onclick="delTask('${t.id}')">×</button>
     `;
 
+    div.querySelector('.t-name').addEventListener('click', e => {
+      e.stopPropagation();
+      startNameEdit(div, t.id);
+    });
+
     div.addEventListener('dragstart', () => {
       dragIdx = i;
       setTimeout(() => div.classList.add('dragging'), 0);
@@ -1094,9 +1159,43 @@ function delTask(id) {
   save(); renderList(); redraw(); updateStats();
 }
 
+function clearAllTasks() {
+  if (S.tasks.length === 0) return;
+  S.tasks = [];
+  save(); renderList(); redraw(); updateStats();
+}
+
 function setColor(id, color) {
   const t = S.tasks.find(t => t.id === id);
   if (t) { t.color = color; save(); renderList(); redraw(); }
+}
+
+function startNameEdit(itemEl, taskId) {
+  if (itemEl.querySelector('.t-name-edit')) return;
+  const task = S.tasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  itemEl.draggable = false;
+  const nameSpan = itemEl.querySelector('.t-name');
+  const inp = document.createElement('input');
+  inp.className = 't-name-edit';
+  inp.type = 'text';
+  inp.value = task.name;
+  nameSpan.replaceWith(inp);
+  inp.focus();
+  inp.select();
+
+  function commit() {
+    const val = inp.value.trim();
+    if (val) task.name = val;
+    save(); renderList(); redraw();
+  }
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); inp.blur(); }
+    if (e.key === 'Escape') { inp.value = task.name; inp.blur(); }
+  });
+  inp.addEventListener('click', e => e.stopPropagation());
 }
 
 // ── Stats ─────────────────────────────────────────────────────
