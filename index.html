@@ -756,6 +756,19 @@
       <button class="modal-close" onclick="closeSettings()">×</button>
     </div>
     <div class="modal-body">
+      <div class="modal-section-lbl">Clock</div>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-name">24-hour clock face</div>
+          <div class="setting-desc">Display a 24 h dial instead of 12 h</div>
+        </div>
+        <label class="tog">
+          <input type="checkbox" id="setClock24h" onchange="applySetting('clock24h', this.checked)" />
+          <div class="tog-track"></div>
+        </label>
+      </div>
+
       <div class="modal-section-lbl">Current Task Board</div>
 
       <div class="setting-row">
@@ -774,16 +787,6 @@
         <div>
           <div class="setting-name" style="color:var(--dim)">Sound alerts</div>
           <div class="setting-desc">Play a tone when a task ends</div>
-        </div>
-        <label class="tog">
-          <input type="checkbox" disabled />
-          <div class="tog-track" style="opacity:.35;cursor:not-allowed"></div>
-        </label>
-      </div>
-      <div class="setting-row">
-        <div>
-          <div class="setting-name" style="color:var(--dim)">24-hour clock face</div>
-          <div class="setting-desc">Display a 24 h dial instead of 12 h</div>
         </div>
         <label class="tog">
           <input type="checkbox" disabled />
@@ -829,7 +832,7 @@ let S = {
   startTime: null,     // Date
   budget: { inputMode: 'duration', hours: 2, mins: 0, endTimeStr: null, count: 3 },
   tasks: [],           // [{id,name,duration(mins),color}]
-  settings: { showTimeRemaining: true }
+  settings: { showTimeRemaining: true, clock24h: false }
 };
 
 // ── Persistence ───────────────────────────────────────────────
@@ -897,6 +900,7 @@ function init() {
 
   // Sync settings toggle initial state
   document.getElementById('setShowRem').checked = S.settings.showTimeRemaining;
+  document.getElementById('setClock24h').checked = S.settings.clock24h ?? false;
 
   // Escape key closes modal
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
@@ -906,6 +910,8 @@ function init() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────
+function getCycleMins() { return S.settings.clock24h ? 1440 : 720; }
+
 const p2 = n => String(n).padStart(2, '0');
 function hhmm(d) { return p2(d.getHours()) + ':' + p2(d.getMinutes()); }
 
@@ -920,7 +926,7 @@ function svgEl(tag, a = {}) {
   return el;
 }
 
-function minsToAngle(m) { return (m % 720) / 720 * 360; }
+function minsToAngle(m) { return m / getCycleMins() * 360; }
 
 function durStr(mins) {
   const h = Math.floor(mins / 60), m = mins % 60;
@@ -950,41 +956,78 @@ function getBudgetMins() {
 function buildFace() {
   const tg = document.getElementById('gTicks');
   const ng = document.getElementById('gNums');
+  tg.innerHTML = '';
+  ng.innerHTML = '';
 
-  for (let i = 0; i < 60; i++) {
-    const isH = i % 5  === 0;
-    const isQ = i % 15 === 0;
-    const [x1,y1] = polar(CX, CY, 155, i * 6);
-    const [x2,y2] = polar(CX, CY, isQ ? 139 : isH ? 144 : 149, i * 6);
-    tg.appendChild(svgEl('line', {
-      x1,y1,x2,y2,
-      stroke: isH ? '#7a7a7a' : '#333',
-      'stroke-width': isQ ? 2.5 : isH ? 1.5 : 1,
-      'stroke-linecap': 'round'
-    }));
-  }
-
-  for (let h = 1; h <= 12; h++) {
-    const [x,y] = polar(CX, CY, 122, h * 30);
-    const t = svgEl('text', {
-      x, y, 'text-anchor': 'middle', 'dominant-baseline': 'central',
-      fill: '#bbb', 'font-family': 'Helvetica Neue,Arial',
-      'font-size': h === 12 ? '16' : '14.5', 'font-weight': '300'
-    });
-    t.textContent = h;
-    ng.appendChild(t);
+  if (S.settings.clock24h) {
+    // 24 major hour marks + 24 half-hour minor marks
+    for (let i = 0; i < 24; i++) {
+      const isQ = i % 6 === 0;
+      const deg = i * 15;
+      const [x1,y1] = polar(CX, CY, 155, deg);
+      const [x2,y2] = polar(CX, CY, isQ ? 139 : 144, deg);
+      tg.appendChild(svgEl('line', {
+        x1,y1,x2,y2, stroke:'#7a7a7a',
+        'stroke-width': isQ ? 2.5 : 1.5, 'stroke-linecap':'round'
+      }));
+      const hdeg = deg + 7.5;
+      const [hx1,hy1] = polar(CX, CY, 155, hdeg);
+      const [hx2,hy2] = polar(CX, CY, 149, hdeg);
+      tg.appendChild(svgEl('line', {
+        x1:hx1,y1:hy1,x2:hx2,y2:hy2,
+        stroke:'#333', 'stroke-width':1, 'stroke-linecap':'round'
+      }));
+    }
+    // Numbers every 2 hours: 0, 2, 4 … 22 at the 12 standard clock positions
+    for (let h = 0; h < 12; h++) {
+      const hr = h * 2;
+      const [x,y] = polar(CX, CY, 122, h * 30);
+      const t = svgEl('text', {
+        x, y, 'text-anchor':'middle', 'dominant-baseline':'central',
+        fill:'#bbb', 'font-family':'Helvetica Neue,Arial',
+        'font-size': hr === 0 || hr === 12 ? '14' : '12.5', 'font-weight':'300'
+      });
+      t.textContent = hr;
+      ng.appendChild(t);
+    }
+  } else {
+    for (let i = 0; i < 60; i++) {
+      const isH = i % 5  === 0;
+      const isQ = i % 15 === 0;
+      const [x1,y1] = polar(CX, CY, 155, i * 6);
+      const [x2,y2] = polar(CX, CY, isQ ? 139 : isH ? 144 : 149, i * 6);
+      tg.appendChild(svgEl('line', {
+        x1,y1,x2,y2,
+        stroke: isH ? '#7a7a7a' : '#333',
+        'stroke-width': isQ ? 2.5 : isH ? 1.5 : 1,
+        'stroke-linecap': 'round'
+      }));
+    }
+    for (let h = 1; h <= 12; h++) {
+      const [x,y] = polar(CX, CY, 122, h * 30);
+      const t = svgEl('text', {
+        x, y, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+        fill: '#bbb', 'font-family': 'Helvetica Neue,Arial',
+        'font-size': h === 12 ? '16' : '14.5', 'font-weight': '300'
+      });
+      t.textContent = h;
+      ng.appendChild(t);
+    }
   }
 }
 
 // ── Hands (live) ──────────────────────────────────────────────
 function tickHands() {
   const n = new Date();
-  const h = n.getHours() % 12, m = n.getMinutes(), s = n.getSeconds();
-  rotateSvg('hHour', (h + m/60) * 30);
+  const h = n.getHours(), m = n.getMinutes(), s = n.getSeconds();
+  if (S.settings.clock24h) {
+    rotateSvg('hHour', (h + m/60) * 15);   // 360° / 24h = 15°/h
+  } else {
+    rotateSvg('hHour', ((h % 12) + m/60) * 30); // 360° / 12h = 30°/h
+  }
   rotateSvg('hMin',  (m + s/60) * 6);
   rotateSvg('hSec',  s * 6);
-  document.getElementById('tNow').textContent =
-    p2(n.getHours()) + ':' + p2(m);
+  document.getElementById('tNow').textContent = p2(h) + ':' + p2(m);
   updateBoard();
 }
 
@@ -1063,6 +1106,7 @@ function updateBoard() {
 // ── Settings ──────────────────────────────────────────────────
 function openSettings() {
   document.getElementById('setShowRem').checked = S.settings.showTimeRemaining;
+  document.getElementById('setClock24h').checked = S.settings.clock24h ?? false;
   document.getElementById('settingsOverlay').classList.add('open');
 }
 
@@ -1077,6 +1121,7 @@ function closeSettingsOverlay(e) {
 function applySetting(key, value) {
   S.settings[key] = value;
   save();
+  if (key === 'clock24h') { buildFace(); redraw(); }
   updateBoard();
 }
 
@@ -1354,13 +1399,14 @@ function redraw() {
 }
 
 function drawSpan(startAbs, dur, color, opacity, label, taskIdx) {
+  const cycle = getCycleMins();
   let rem = dur, pos = startAbs;
   while (rem > 0) {
-    const lapN  = Math.floor(pos / 720);
+    const lapN  = Math.floor(pos / cycle);
     if (lapN > 1) break;
 
-    const lapPos = pos % 720;
-    const lapEnd = (lapN + 1) * 720;
+    const lapPos = pos % cycle;
+    const lapEnd = (lapN + 1) * cycle;
     const seg    = Math.min(rem, lapEnd - pos);
 
     const sDeg = minsToAngle(lapPos) + GAP_DEG / 2;
@@ -1412,9 +1458,10 @@ function drawSpan(startAbs, dur, color, opacity, label, taskIdx) {
 
 // ── Budget end marker ─────────────────────────────────────────
 function drawBudgetMarker(endAbs) {
-  const lapN   = Math.floor(endAbs / 720);
+  const cycle  = getCycleMins();
+  const lapN   = Math.floor(endAbs / cycle);
   if (lapN > 1) return;
-  const lapPos = endAbs % 720;
+  const lapPos = endAbs % cycle;
   const deg    = minsToAngle(lapPos);
   const [rO, rI] = lapN === 0 ? [OR_O, OR_I] : [IR_O, IR_I];
 
@@ -1441,9 +1488,10 @@ function drawBudgetMarker(endAbs) {
 
 // ── Resize handles ────────────────────────────────────────────
 function addHandle(endAbs, taskIdx) {
-  const lapN   = Math.floor(endAbs / 720);
+  const cycle  = getCycleMins();
+  const lapN   = Math.floor(endAbs / cycle);
   if (lapN > 1) return;
-  const lapPos = endAbs % 720;
+  const lapPos = endAbs % cycle;
   const deg    = minsToAngle(lapPos);
   const [rO, rI] = lapN === 0 ? [OR_O, OR_I] : [IR_O, IR_I];
   const midR   = (rO + rI) / 2;
@@ -1489,16 +1537,17 @@ function onDragMove(e) {
   // Angle → clock minutes (0 = 12 o'clock, clockwise)
   let deg = Math.atan2(dy, dx) * 180 / Math.PI + 90;
   if (deg < 0) deg += 360;
-  const targetMins = deg / 360 * 720; // 0-720
+  const cycle = getCycleMins();
+  const targetMins = deg / 360 * cycle;
 
-  // Compute where the dragged task starts (in 12h space)
+  // Compute where the dragged task starts in the current cycle space
   const startAbs  = S.startTime.getHours() * 60 + S.startTime.getMinutes();
   let cursor = startAbs;
   for (let i = 0; i < drag.taskIdx; i++) cursor += S.tasks[i].duration;
-  const taskStart12 = cursor % 720;
+  const taskStart12 = cursor % cycle;
 
   let newDur = targetMins - taskStart12;
-  if (newDur <= 0) newDur += 720;
+  if (newDur <= 0) newDur += cycle;
   newDur = Math.round(newDur / 5) * 5;
   newDur = Math.max(5, newDur);
 
