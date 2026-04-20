@@ -264,12 +264,16 @@
       align-items: center;
       justify-content: center;
       min-height: 0;
+      padding: 16px;
+      overflow: hidden;
     }
 
     #clockSvg {
       filter: drop-shadow(0 8px 60px rgba(0,0,0,.9));
-      max-height: 100%;
-      max-width: 100%;
+      width: 100%;
+      height: 100%;
+      max-width: 700px;
+      max-height: 700px;
     }
     .arc-handle { cursor: ew-resize; }
 
@@ -489,6 +493,70 @@
       font-size: 10px; color: var(--dim); margin-bottom: 4px;
     }
     .pop-val { color: var(--text); font-variant-numeric: tabular-nums; font-size: 11px; }
+
+    /* ── Mobile responsive ───────────────────────── */
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+        height: auto;
+        min-height: 100dvh;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      .sidebar {
+        width: 100%;
+        flex-shrink: 0;
+        border-right: none;
+        border-top: 1px solid var(--border);
+        overflow-y: visible;
+        order: 2;
+        /* show all sections without internal scroll */
+        max-height: none;
+      }
+
+      .main {
+        order: 1;
+        width: 100%;
+        flex-shrink: 0;
+        overflow: visible;
+      }
+
+      .s-head { padding: 14px 18px 10px; }
+      .s-sec  { padding: 12px 18px; }
+      .list-wrap { padding: 10px 18px 14px; }
+      .stats { padding: 10px 18px; gap: 18px; }
+
+      .now-board {
+        padding: 12px 18px;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .nb-task-name { font-size: 22px; }
+      .nb-remaining { font-size: 28px; }
+      .nb-rem-lbl   { font-size: 8px; }
+
+      .clock-wrap {
+        flex: none;
+        width: 100%;
+        aspect-ratio: 1;
+        height: auto;
+        padding: 12px;
+        overflow: visible;
+      }
+
+      #clockSvg {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        max-height: none;
+      }
+
+      /* bigger touch targets */
+      .t-del { padding: 4px 6px; font-size: 18px; }
+      .nb-settings-btn { width: 36px; height: 36px; }
+      .btn-add { padding: 12px; }
+    }
   </style>
 </head>
 <body>
@@ -625,7 +693,7 @@
 
   <!-- ── Clock ─────────────────────────────────────── -->
   <div class="clock-wrap">
-  <svg id="clockSvg" viewBox="0 0 500 500" width="500" height="500">
+  <svg id="clockSvg" viewBox="0 0 500 500">
     <defs>
       <radialGradient id="faceGrad" cx="48%" cy="42%" r="62%">
         <stop offset="0%"   stop-color="#252525"/>
@@ -803,8 +871,10 @@ function init() {
     save(); redraw(); updateStats();
   });
 
-  document.getElementById('fName').addEventListener('keydown', e => {
-    if (e.key === 'Enter') addFreeTask();
+  ['fName', 'fHours', 'fMins'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') addFreeTask();
+    });
   });
 
   setMode(S.mode, false);
