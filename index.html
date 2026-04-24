@@ -37,6 +37,12 @@
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-scroll {
+      flex: 1;
+      min-height: 0;
       overflow-y: auto;
     }
 
@@ -143,9 +149,7 @@
 
     /* task list */
     .list-wrap {
-      flex: 1;
       padding: 12px 22px 16px;
-      overflow-y: auto;
     }
     .task-item {
       display: flex;
@@ -187,6 +191,12 @@
       transition: color .15s; flex-shrink: 0;
     }
     .t-del:hover { color: var(--red); }
+    .t-edit {
+      background: none; border: none; color: var(--muted);
+      font-size: 13px; cursor: pointer; padding: 0 2px; line-height: 1;
+      transition: color .15s; flex-shrink: 0;
+    }
+    .t-edit:hover { color: var(--accent); }
 
     .t-name-edit {
       flex: 1; min-width: 0;
@@ -205,8 +215,30 @@
       align-items: center;
       justify-content: space-between;
       margin-bottom: 10px;
+      cursor: pointer;
+      user-select: none;
     }
     .list-hd .s-lbl { margin-bottom: 0; }
+
+    /* collapsible sections */
+    .s-sec-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+    .s-sec-hd .s-lbl { margin-bottom: 0; }
+    .s-sec-hd + .s-sec-body { margin-top: 10px; }
+
+    .s-chevron {
+      font-size: 9px;
+      color: var(--muted);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    [data-sec].collapsed .s-chevron { transform: rotate(-90deg); }
+    [data-sec].collapsed .s-sec-body { display: none; }
     .btn-clear {
       background: none; border: none;
       color: var(--muted);
@@ -452,6 +484,22 @@
     .tog input:checked + .tog-track { background: var(--accent); }
     .tog input:checked + .tog-track::after { transform: translateX(16px); background: #111; }
 
+    /* test-sound button */
+    .btn-test-sound {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--dim);
+      font-family: inherit;
+      font-size: 10px;
+      padding: 4px 9px;
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .btn-test-sound:hover { border-color: var(--accent); color: var(--accent); }
+
     /* budget name inputs spacing */
     #budgetNames input { margin-bottom: 6px; }
 
@@ -470,6 +518,73 @@
       font-size: 10px; font-weight: 500; cursor: pointer; transition: all .15s;
     }
     .b-sub-btn.on { background: var(--surface); color: var(--text); }
+
+    /* task edit modal */
+    .task-edit-times {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .task-edit-time-box {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+    .task-edit-time-lbl {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    .task-edit-time-val {
+      font-size: 20px;
+      font-weight: 200;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      letter-spacing: -.02em;
+    }
+    .task-edit-time-val.start-val { color: #5B9BD5; }
+    .task-edit-time-val.end-val   { color: var(--accent); }
+    .modal-footer {
+      display: flex;
+      gap: 8px;
+      padding: 0 24px 20px;
+    }
+    .btn-cancel {
+      flex: 1;
+      padding: 9px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--dim);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-cancel:hover { border-color: var(--dim); color: var(--text); }
+    .btn-save {
+      flex: 2;
+      padding: 9px;
+      background: var(--accent);
+      border: none;
+      border-radius: 5px;
+      color: #111;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-save:hover { background: #f7c548; }
 
     /* hover popover */
     #popover {
@@ -509,10 +624,13 @@
         flex-shrink: 0;
         border-right: none;
         border-top: 1px solid var(--border);
-        overflow-y: visible;
+        overflow: visible;
         order: 2;
-        /* show all sections without internal scroll */
-        max-height: none;
+      }
+
+      .sidebar-scroll {
+        overflow-y: visible;
+        flex: none;
       }
 
       .main {
@@ -568,84 +686,113 @@
     <div class="s-title">Clock<span>Task</span></div>
   </div>
 
-  <!-- Mode -->
-  <div class="s-sec">
-    <div class="s-lbl">Mode</div>
-    <div class="toggle">
-      <button class="t-btn on" id="btnFree"   onclick="setMode('free')">Free Add</button>
-      <button class="t-btn"    id="btnBudget" onclick="setMode('budget')">Budget</button>
-    </div>
-  </div>
+  <div class="sidebar-scroll">
 
-  <!-- Start time -->
-  <div class="s-sec">
-    <div class="s-lbl">Start Time</div>
-    <input type="time" id="startInput" />
-    <button class="btn-now" onclick="resetStartToNow()">Reset to Now</button>
-  </div>
-
-  <!-- Free panel -->
-  <div class="s-sec" id="freePanel">
-    <div class="s-lbl">Add Task</div>
-    <div style="margin-bottom:8px">
-      <input type="text" id="fName" placeholder="Task name…" />
-    </div>
-    <div class="row">
-      <div class="col">
-        <label class="mini">Hours</label>
-        <input type="number" id="fHours" min="0" max="23" value="0" />
+    <!-- Mode -->
+    <div class="s-sec" data-sec="mode">
+      <div class="s-sec-hd" onclick="toggleSection('mode')">
+        <div class="s-lbl">Mode</div>
+        <span class="s-chevron">▾</span>
       </div>
-      <div class="col">
-        <label class="mini">Minutes</label>
-        <input type="number" id="fMins" min="5" max="55" step="5" value="30" />
+      <div class="s-sec-body">
+        <div class="toggle">
+          <button class="t-btn on" id="btnFree"   onclick="setMode('free')">Free Add</button>
+          <button class="t-btn"    id="btnBudget" onclick="setMode('budget')">Budget</button>
+        </div>
       </div>
     </div>
-    <button class="btn-add" onclick="addFreeTask()">+ Add Task</button>
-  </div>
 
-  <!-- Budget panel -->
-  <div class="s-sec hide" id="budgetPanel">
-    <div class="s-lbl">Limit by</div>
-    <div class="b-sub-toggle">
-      <button class="b-sub-btn on" id="bBtnDur"     onclick="setBudgetInputMode('duration')">Duration</button>
-      <button class="b-sub-btn"    id="bBtnEndTime" onclick="setBudgetInputMode('endtime')">End Time</button>
-    </div>
-    <!-- Duration inputs -->
-    <div id="bDurInputs" class="row">
-      <div class="col">
-        <label class="mini">Hours</label>
-        <input type="number" id="bHours" min="0" max="23" value="2" oninput="syncBudgetUI()" />
+    <!-- Start time -->
+    <div class="s-sec" data-sec="start">
+      <div class="s-sec-hd" onclick="toggleSection('start')">
+        <div class="s-lbl">Start Time</div>
+        <span class="s-chevron">▾</span>
       </div>
-      <div class="col">
-        <label class="mini">Mins</label>
-        <input type="number" id="bMins" min="0" max="55" step="5" value="0" oninput="syncBudgetUI()" />
+      <div class="s-sec-body">
+        <input type="time" id="startInput" />
+        <button class="btn-now" onclick="resetStartToNow()">Reset to Now</button>
       </div>
     </div>
-    <!-- End time input -->
-    <div id="bEndTimeInput" class="hide" style="margin-bottom:8px">
-      <label class="mini">End Time</label>
-      <input type="time" id="bEndTime" oninput="syncBudgetUI()" />
-    </div>
-    <!-- Task count -->
-    <div style="margin-bottom:8px">
-      <label class="mini">Number of Tasks</label>
-      <input type="number" id="bCount" min="1" max="12" value="3" oninput="syncBudgetUI()" />
-    </div>
-    <div class="s-lbl" style="margin-top:4px">Task Names</div>
-    <div id="budgetNames"></div>
-    <button class="btn-add" onclick="applyBudget()">Apply Budget</button>
-  </div>
 
-  <!-- Task list -->
-  <div class="list-wrap">
-    <div class="list-hd">
-      <div class="s-lbl">Tasks</div>
-      <button class="btn-clear" onclick="clearAllTasks()">Clear all</button>
+    <!-- Free panel -->
+    <div class="s-sec" id="freePanel" data-sec="add-task">
+      <div class="s-sec-hd" onclick="toggleSection('add-task')">
+        <div class="s-lbl">Add Task</div>
+        <span class="s-chevron">▾</span>
+      </div>
+      <div class="s-sec-body">
+        <div style="margin-bottom:8px">
+          <input type="text" id="fName" placeholder="Task name…" />
+        </div>
+        <div class="row">
+          <div class="col">
+            <label class="mini">Hours</label>
+            <input type="number" id="fHours" min="0" max="23" value="0" />
+          </div>
+          <div class="col">
+            <label class="mini">Minutes</label>
+            <input type="number" id="fMins" min="5" max="55" step="5" value="30" />
+          </div>
+        </div>
+        <button class="btn-add" onclick="addFreeTask()">+ Add Task</button>
+      </div>
     </div>
-    <div id="taskList"></div>
-  </div>
 
-  <!-- Stats -->
+    <!-- Budget panel -->
+    <div class="s-sec hide" id="budgetPanel" data-sec="add-task">
+      <div class="s-sec-hd" onclick="toggleSection('add-task')">
+        <div class="s-lbl">Budget</div>
+        <span class="s-chevron">▾</span>
+      </div>
+      <div class="s-sec-body">
+        <div class="b-sub-toggle">
+          <button class="b-sub-btn on" id="bBtnDur"     onclick="setBudgetInputMode('duration')">Duration</button>
+          <button class="b-sub-btn"    id="bBtnEndTime" onclick="setBudgetInputMode('endtime')">End Time</button>
+        </div>
+        <!-- Duration inputs -->
+        <div id="bDurInputs" class="row">
+          <div class="col">
+            <label class="mini">Hours</label>
+            <input type="number" id="bHours" min="0" max="23" value="2" oninput="syncBudgetUI()" />
+          </div>
+          <div class="col">
+            <label class="mini">Mins</label>
+            <input type="number" id="bMins" min="0" max="55" step="5" value="0" oninput="syncBudgetUI()" />
+          </div>
+        </div>
+        <!-- End time input -->
+        <div id="bEndTimeInput" class="hide" style="margin-bottom:8px">
+          <label class="mini">End Time</label>
+          <input type="time" id="bEndTime" oninput="syncBudgetUI()" />
+        </div>
+        <!-- Task count -->
+        <div style="margin-bottom:8px">
+          <label class="mini">Number of Tasks</label>
+          <input type="number" id="bCount" min="1" max="12" value="3" oninput="syncBudgetUI()" />
+        </div>
+        <div class="s-lbl" style="margin-top:4px">Task Names</div>
+        <div id="budgetNames"></div>
+        <button class="btn-add" onclick="applyBudget()">Apply Budget</button>
+      </div>
+    </div>
+
+    <!-- Task list -->
+    <div class="list-wrap" data-sec="tasks">
+      <div class="list-hd" onclick="toggleSection('tasks')">
+        <div class="s-lbl">Tasks</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <button class="btn-clear" onclick="clearAllTasks(); event.stopPropagation()">Clear all</button>
+          <span class="s-chevron">▾</span>
+        </div>
+      </div>
+      <div class="s-sec-body">
+        <div id="taskList"></div>
+      </div>
+    </div>
+
+  </div><!-- /.sidebar-scroll -->
+
+  <!-- Stats — sticky footer -->
   <div class="stats">
     <div>
       <div class="stat-v" id="sTotal">—</div>
@@ -769,6 +916,17 @@
         </label>
       </div>
 
+      <div class="setting-row">
+        <div>
+          <div class="setting-name">Fit clock to tasks</div>
+          <div class="setting-desc">Scale the full circle to your task range — start time at 12 o'clock, end time completes 360°</div>
+        </div>
+        <label class="tog">
+          <input type="checkbox" id="setFitClock" onchange="applySetting('fitClock', this.checked)" />
+          <div class="tog-track"></div>
+        </label>
+      </div>
+
       <div class="modal-section-lbl">Current Task Board</div>
 
       <div class="setting-row">
@@ -782,17 +940,60 @@
         </label>
       </div>
 
-      <div class="modal-section-lbl">Coming soon</div>
+      <div class="modal-section-lbl">Notifications</div>
       <div class="setting-row">
         <div>
-          <div class="setting-name" style="color:var(--dim)">Sound alerts</div>
-          <div class="setting-desc">Play a tone when a task ends</div>
+          <div class="setting-name">Sound alerts</div>
+          <div class="setting-desc">Play a chime when each task ends</div>
         </div>
-        <label class="tog">
-          <input type="checkbox" disabled />
-          <div class="tog-track" style="opacity:.35;cursor:not-allowed"></div>
-        </label>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="btn-test-sound" onclick="playChime()" title="Preview sound">▶ Test</button>
+          <label class="tog">
+            <input type="checkbox" id="setSoundAlerts" onchange="applySetting('soundAlerts', this.checked)" />
+            <div class="tog-track"></div>
+          </label>
+        </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════  TASK EDIT MODAL  ═══════════════ -->
+<div class="modal-overlay" id="taskEditOverlay" onclick="closeTaskEditOverlay(event)">
+  <div class="modal" style="width:340px">
+    <div class="modal-hd">
+      <div class="modal-title">Edit Task</div>
+      <button class="modal-close" onclick="closeTaskEdit()">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:12px">
+        <label class="mini">Task Name</label>
+        <input type="text" id="teNameInput" />
+      </div>
+      <div class="row">
+        <div class="col">
+          <label class="mini">Hours</label>
+          <input type="number" id="teHours" min="0" max="23" value="0" oninput="updateTaskEditTimes()" />
+        </div>
+        <div class="col">
+          <label class="mini">Minutes</label>
+          <input type="number" id="teMins" min="5" max="55" step="5" value="30" oninput="updateTaskEditTimes()" />
+        </div>
+      </div>
+      <div class="task-edit-times">
+        <div class="task-edit-time-box">
+          <div class="task-edit-time-lbl">Starts at</div>
+          <div class="task-edit-time-val start-val" id="teStartVal">—</div>
+        </div>
+        <div class="task-edit-time-box">
+          <div class="task-edit-time-lbl">Ends at</div>
+          <div class="task-edit-time-val end-val" id="teEndVal">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeTaskEdit()">Cancel</button>
+      <button class="btn-save"   onclick="saveTaskEdit()">Save Changes</button>
     </div>
   </div>
 </div>
@@ -832,7 +1033,7 @@ let S = {
   startTime: null,     // Date
   budget: { inputMode: 'duration', hours: 2, mins: 0, endTimeStr: null, count: 3 },
   tasks: [],           // [{id,name,duration(mins),color}]
-  settings: { showTimeRemaining: true, clock24h: false }
+  settings: { showTimeRemaining: true, clock24h: false, fitClock: false, soundAlerts: false }
 };
 
 // ── Persistence ───────────────────────────────────────────────
@@ -893,17 +1094,22 @@ function init() {
   svgEl2.addEventListener('mousemove', onArcHover);
   svgEl2.addEventListener('mouseleave', hidePop);
 
+  initSections();
   buildFace();
   renderList();
   redraw();
   updateStats();
 
   // Sync settings toggle initial state
-  document.getElementById('setShowRem').checked = S.settings.showTimeRemaining;
-  document.getElementById('setClock24h').checked = S.settings.clock24h ?? false;
+  document.getElementById('setShowRem').checked     = S.settings.showTimeRemaining;
+  document.getElementById('setClock24h').checked    = S.settings.clock24h    ?? false;
+  document.getElementById('setFitClock').checked    = S.settings.fitClock    ?? false;
+  document.getElementById('setSoundAlerts').checked = S.settings.soundAlerts ?? false;
 
-  // Escape key closes modal
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
+  // Escape key closes any open modal
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeSettings(); closeTaskEdit(); }
+  });
 
   setInterval(tickHands, 1000);
   tickHands();
@@ -952,12 +1158,58 @@ function getBudgetMins() {
   return S.budget.hours * 60 + S.budget.mins;
 }
 
+// ── Fit-to-tasks range ────────────────────────────────────────
+function getFitRange() {
+  if (!S.settings.fitClock || !S.startTime || S.tasks.length === 0) return null;
+  const startAbs = S.startTime.getHours() * 60 + S.startTime.getMinutes();
+  const span = S.tasks.reduce((s, t) => s + t.duration, 0);
+  if (span === 0) return null;
+  return { startAbs, endAbs: startAbs + span, span };
+}
+
 // ── Clock face ────────────────────────────────────────────────
 function buildFace() {
   const tg = document.getElementById('gTicks');
   const ng = document.getElementById('gNums');
   tg.innerHTML = '';
   ng.innerHTML = '';
+
+  const fit = getFitRange();
+  if (fit) {
+    const { startAbs, endAbs, span } = fit;
+    let tickMin, labelMin;
+    if      (span <= 60)  { tickMin = 5;  labelMin = 15; }
+    else if (span <= 180) { tickMin = 10; labelMin = 30; }
+    else if (span <= 480) { tickMin = 15; labelMin = 60; }
+    else if (span <= 960) { tickMin = 30; labelMin = 120; }
+    else                  { tickMin = 60; labelMin = 240; }
+
+    const firstTick = Math.ceil((startAbs + 0.5) / tickMin) * tickMin;
+    for (let t = firstTick; t < endAbs; t += tickMin) {
+      const deg = (t - startAbs) / span * 360;
+      const isLabel = t % labelMin === 0;
+      const [x1,y1] = polar(CX, CY, 155, deg);
+      const [x2,y2] = polar(CX, CY, isLabel ? 139 : 148, deg);
+      tg.appendChild(svgEl('line', {
+        x1, y1, x2, y2,
+        stroke: isLabel ? '#7a7a7a' : '#333',
+        'stroke-width': isLabel ? 1.5 : 1, 'stroke-linecap': 'round'
+      }));
+      if (isLabel) {
+        const h2 = Math.floor(t / 60) % 24, m2 = t % 60;
+        const display = m2 === 0 ? String(h2) : (p2(h2) + ':' + p2(m2));
+        const [lx, ly] = polar(CX, CY, 122, deg);
+        const txEl = svgEl('text', {
+          x: lx, y: ly, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+          fill: '#bbb', 'font-family': 'Helvetica Neue,Arial',
+          'font-size': m2 === 0 ? '14.5' : '10', 'font-weight': '300'
+        });
+        txEl.textContent = display;
+        ng.appendChild(txEl);
+      }
+    }
+    return;
+  }
 
   if (S.settings.clock24h) {
     // 24 major hour marks + 24 half-hour minor marks
@@ -1020,13 +1272,22 @@ function buildFace() {
 function tickHands() {
   const n = new Date();
   const h = n.getHours(), m = n.getMinutes(), s = n.getSeconds();
-  if (S.settings.clock24h) {
-    rotateSvg('hHour', (h + m/60) * 15);   // 360° / 24h = 15°/h
+  const fit = getFitRange();
+  if (fit) {
+    const nowAbs = h * 60 + m + s / 60;
+    const deg = Math.max(0, Math.min(359.9, (nowAbs - fit.startAbs) / fit.span * 360));
+    rotateSvg('hHour', deg);
+    rotateSvg('hMin',  deg);
+    rotateSvg('hSec',  deg);
+  } else if (S.settings.clock24h) {
+    rotateSvg('hHour', (h + m/60) * 15);
   } else {
-    rotateSvg('hHour', ((h % 12) + m/60) * 30); // 360° / 12h = 30°/h
+    rotateSvg('hHour', ((h % 12) + m/60) * 30);
   }
-  rotateSvg('hMin',  (m + s/60) * 6);
-  rotateSvg('hSec',  s * 6);
+  if (!fit) {
+    rotateSvg('hMin', (m + s/60) * 6);
+    rotateSvg('hSec', s * 6);
+  }
   document.getElementById('tNow').textContent = p2(h) + ':' + p2(m);
   updateBoard();
 }
@@ -1057,6 +1318,14 @@ function getCurrentTask() {
 
 function updateBoard() {
   const info    = getCurrentTask();
+
+  // Sound: fire chime when transitioning between tasks (not on first render)
+  const currentId = info?.task.id ?? null;
+  if (_prevTaskId !== undefined && currentId !== _prevTaskId && S.settings.soundAlerts) {
+    if (_prevTaskId !== null) playChime(); // a task just ended
+  }
+  _prevTaskId = currentId;
+
   const liveEl  = document.getElementById('nbLive');
   const nameEl  = document.getElementById('nbName');
   const nextEl  = document.getElementById('nbNext');
@@ -1105,8 +1374,10 @@ function updateBoard() {
 
 // ── Settings ──────────────────────────────────────────────────
 function openSettings() {
-  document.getElementById('setShowRem').checked = S.settings.showTimeRemaining;
-  document.getElementById('setClock24h').checked = S.settings.clock24h ?? false;
+  document.getElementById('setShowRem').checked     = S.settings.showTimeRemaining;
+  document.getElementById('setClock24h').checked    = S.settings.clock24h    ?? false;
+  document.getElementById('setFitClock').checked    = S.settings.fitClock    ?? false;
+  document.getElementById('setSoundAlerts').checked = S.settings.soundAlerts ?? false;
   document.getElementById('settingsOverlay').classList.add('open');
 }
 
@@ -1121,7 +1392,7 @@ function closeSettingsOverlay(e) {
 function applySetting(key, value) {
   S.settings[key] = value;
   save();
-  if (key === 'clock24h') { buildFace(); redraw(); }
+  if (key === 'clock24h' || key === 'fitClock') { buildFace(); redraw(); }
   updateBoard();
 }
 
@@ -1235,6 +1506,7 @@ function renderList() {
       </div>
       <span class="t-name" title="${t.name}">${t.name}</span>
       <span class="t-dur">${durStr(t.duration)}</span>
+      <button class="t-edit" onclick="openTaskEdit('${t.id}')" title="Edit task">✎</button>
       <button class="t-del" onclick="delTask('${t.id}')">×</button>
     `;
 
@@ -1353,14 +1625,15 @@ function donutPath(rO, rI, sDeg, eDeg) {
 }
 
 function redraw() {
-  ['gOuter','gInner','gHandles','gLabels','gBudget','sep1','sep2'].forEach(id => {
-    const el = document.getElementById(id);
-    if (id === 'sep1' || id === 'sep2') return; // keep separator circles
-    el.innerHTML = '';
+  ['gOuter','gInner','gHandles','gLabels','gBudget'].forEach(id => {
+    document.getElementById(id).innerHTML = '';
   });
 
-  // Restore separators (cleared above would remove them; skip clearing)
-  // (they're <circle> elements in SVG, not in these groups — already safe)
+  const fit = getFitRange();
+  // In fit mode: hide ring separators (arcs span the full donut); rebuild face for new range
+  document.getElementById('sep1').style.visibility = fit ? 'hidden' : '';
+  document.getElementById('sep2').style.visibility = fit ? 'hidden' : '';
+  if (fit) buildFace();
 
   if (!S.startTime || S.tasks.length === 0) return;
 
@@ -1399,6 +1672,40 @@ function redraw() {
 }
 
 function drawSpan(startAbs, dur, color, opacity, label, taskIdx) {
+  const fit = getFitRange();
+  if (fit) {
+    const sDeg = (startAbs - fit.startAbs) / fit.span * 360 + GAP_DEG / 2;
+    const eDeg = (startAbs + dur - fit.startAbs) / fit.span * 360 - GAP_DEG / 2;
+    if (eDeg > sDeg) {
+      const pathAttrs = { d: donutPath(OR_O, IR_I, sDeg, eDeg), fill: color, opacity };
+      if (taskIdx >= 0) pathAttrs['data-ti'] = taskIdx;
+      const path = svgEl('path', pathAttrs);
+      const tip = svgEl('title');
+      tip.textContent = label + ' · ' + durStr(dur);
+      path.appendChild(tip);
+      document.getElementById('gOuter').appendChild(path);
+
+      const sweep = eDeg - sDeg;
+      if (sweep >= 12 && label && taskIdx >= 0) {
+        const midDeg = sDeg + sweep / 2;
+        const midR   = (OR_O + IR_I) / 2;
+        const [lx, ly] = polar(CX, CY, midR, midDeg);
+        const rotDeg   = midDeg > 180 ? midDeg + 180 : midDeg;
+        const maxCh    = sweep > 55 ? 16 : sweep > 35 ? 9 : 5;
+        const txt      = label.length > maxCh ? label.slice(0, maxCh - 1) + '…' : label;
+        const tEl = svgEl('text', {
+          x: lx, y: ly, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+          fill: 'rgba(255,255,255,0.85)', 'font-family': 'Helvetica Neue,Arial',
+          'font-size': sweep > 40 ? '10' : '8', 'font-weight': '500',
+          transform: `rotate(${rotDeg},${lx},${ly})`, 'pointer-events': 'none'
+        });
+        tEl.textContent = txt;
+        document.getElementById('gLabels').appendChild(tEl);
+      }
+    }
+    return;
+  }
+
   const cycle = getCycleMins();
   let rem = dur, pos = startAbs;
   while (rem > 0) {
@@ -1458,12 +1765,19 @@ function drawSpan(startAbs, dur, color, opacity, label, taskIdx) {
 
 // ── Budget end marker ─────────────────────────────────────────
 function drawBudgetMarker(endAbs) {
-  const cycle  = getCycleMins();
-  const lapN   = Math.floor(endAbs / cycle);
-  if (lapN > 1) return;
-  const lapPos = endAbs % cycle;
-  const deg    = minsToAngle(lapPos);
-  const [rO, rI] = lapN === 0 ? [OR_O, OR_I] : [IR_O, IR_I];
+  const fit = getFitRange();
+  let deg, rO, rI;
+  if (fit) {
+    if (endAbs <= fit.startAbs || endAbs > fit.endAbs) return;
+    deg = (endAbs - fit.startAbs) / fit.span * 360;
+    rO = OR_O; rI = IR_I;
+  } else {
+    const cycle = getCycleMins();
+    const lapN  = Math.floor(endAbs / cycle);
+    if (lapN > 1) return;
+    deg = minsToAngle(endAbs % cycle);
+    [rO, rI] = lapN === 0 ? [OR_O, OR_I] : [IR_O, IR_I];
+  }
 
   const [x1,y1] = polar(CX,CY, rI - 3, deg);
   const [x2,y2] = polar(CX,CY, rO + 3, deg);
@@ -1488,13 +1802,18 @@ function drawBudgetMarker(endAbs) {
 
 // ── Resize handles ────────────────────────────────────────────
 function addHandle(endAbs, taskIdx) {
-  const cycle  = getCycleMins();
-  const lapN   = Math.floor(endAbs / cycle);
-  if (lapN > 1) return;
-  const lapPos = endAbs % cycle;
-  const deg    = minsToAngle(lapPos);
-  const [rO, rI] = lapN === 0 ? [OR_O, OR_I] : [IR_O, IR_I];
-  const midR   = (rO + rI) / 2;
+  const fit = getFitRange();
+  let deg, midR;
+  if (fit) {
+    deg  = (endAbs - fit.startAbs) / fit.span * 360;
+    midR = (OR_O + IR_I) / 2;
+  } else {
+    const cycle = getCycleMins();
+    const lapN  = Math.floor(endAbs / cycle);
+    if (lapN > 1) return;
+    deg  = minsToAngle(endAbs % cycle);
+    midR = (lapN === 0 ? (OR_O + OR_I) : (IR_O + IR_I)) / 2;
+  }
   const [hx,hy] = polar(CX,CY, midR, deg);
 
   const c = svgEl('circle', {
@@ -1537,19 +1856,25 @@ function onDragMove(e) {
   // Angle → clock minutes (0 = 12 o'clock, clockwise)
   let deg = Math.atan2(dy, dx) * 180 / Math.PI + 90;
   if (deg < 0) deg += 360;
-  const cycle = getCycleMins();
-  const targetMins = deg / 360 * cycle;
 
-  // Compute where the dragged task starts in the current cycle space
-  const startAbs  = S.startTime.getHours() * 60 + S.startTime.getMinutes();
+  const startAbs = S.startTime.getHours() * 60 + S.startTime.getMinutes();
   let cursor = startAbs;
   for (let i = 0; i < drag.taskIdx; i++) cursor += S.tasks[i].duration;
-  const taskStart12 = cursor % cycle;
 
-  let newDur = targetMins - taskStart12;
-  if (newDur <= 0) newDur += cycle;
-  newDur = Math.round(newDur / 5) * 5;
-  newDur = Math.max(5, newDur);
+  const fit = getFitRange();
+  let newDur;
+  if (fit) {
+    const targetAbs = fit.startAbs + deg / 360 * fit.span;
+    newDur = Math.round(Math.max(5, targetAbs - cursor) / 5) * 5;
+  } else {
+    const cycle = getCycleMins();
+    const targetMins  = deg / 360 * cycle;
+    const taskStart12 = cursor % cycle;
+    newDur = targetMins - taskStart12;
+    if (newDur <= 0) newDur += cycle;
+    newDur = Math.round(newDur / 5) * 5;
+    newDur = Math.max(5, newDur);
+  }
 
   const delta = newDur - S.tasks[drag.taskIdx].duration;
   if (delta === 0) return;
@@ -1614,6 +1939,128 @@ function onArcHover(e) {
 
 function hidePop() {
   document.getElementById('popover').style.display = 'none';
+}
+
+// ── Task edit modal ───────────────────────────────────────────
+let editingTaskId = null;
+
+function openTaskEdit(id) {
+  const task = S.tasks.find(t => t.id === id);
+  if (!task) return;
+  editingTaskId = id;
+
+  document.getElementById('teNameInput').value = task.name;
+  document.getElementById('teHours').value = Math.floor(task.duration / 60);
+  document.getElementById('teMins').value  = task.duration % 60;
+  updateTaskEditTimes();
+
+  document.getElementById('taskEditOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('teNameInput').focus(), 50);
+}
+
+function closeTaskEdit() {
+  editingTaskId = null;
+  document.getElementById('taskEditOverlay').classList.remove('open');
+}
+
+function closeTaskEditOverlay(e) {
+  if (e.target === document.getElementById('taskEditOverlay')) closeTaskEdit();
+}
+
+function updateTaskEditTimes() {
+  const h   = Math.max(0, parseInt(document.getElementById('teHours').value) || 0);
+  const m   = Math.max(0, parseInt(document.getElementById('teMins').value)  || 0);
+  const dur = h * 60 + m;
+
+  // Compute start abs for this task's position in the list
+  const idx = S.tasks.findIndex(t => t.id === editingTaskId);
+  let startAbs = S.startTime
+    ? S.startTime.getHours() * 60 + S.startTime.getMinutes()
+    : 0;
+  for (let i = 0; i < idx && i < S.tasks.length; i++) {
+    startAbs += S.tasks[i].duration;
+  }
+
+  document.getElementById('teStartVal').textContent = absToTime(startAbs);
+  document.getElementById('teEndVal').textContent   = dur > 0 ? absToTime(startAbs + dur) : '—';
+}
+
+function saveTaskEdit() {
+  const task = S.tasks.find(t => t.id === editingTaskId);
+  if (!task) return;
+
+  const name = document.getElementById('teNameInput').value.trim();
+  const h    = Math.max(0, parseInt(document.getElementById('teHours').value) || 0);
+  const m    = Math.max(0, parseInt(document.getElementById('teMins').value)  || 0);
+  const dur  = h * 60 + m;
+
+  if (name)   task.name = name;
+  if (dur >= 5) task.duration = dur;
+
+  save(); renderList(); redraw(); updateStats();
+  closeTaskEdit();
+}
+
+// ── Sound alerts ──────────────────────────────────────────
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playChime() {
+  const ctx = getAudioCtx();
+  const t   = ctx.currentTime;
+
+  function note(freq, start, dur) {
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.001, start);
+    gain.gain.exponentialRampToValueAtTime(0.32, start + 0.012); // fast attack
+    gain.gain.exponentialRampToValueAtTime(0.001, start + dur);  // bell decay
+    osc.start(start);
+    osc.stop(start + dur + 0.05);
+  }
+
+  note(659.25, t,        0.9); // E5 — first strike
+  note(493.88, t + 0.28, 0.9); // B4 — second strike
+}
+
+// Tracks the active task id each second to detect boundaries
+let _prevTaskId = undefined;
+
+// ── Collapsible sections ──────────────────────────────────
+const SEC_KEY = 'clocktask_sections_v1';
+
+function loadSections() {
+  try { return JSON.parse(localStorage.getItem(SEC_KEY) || '[]'); } catch { return []; }
+}
+
+function saveSections(ids) {
+  localStorage.setItem(SEC_KEY, JSON.stringify(ids));
+}
+
+function toggleSection(id) {
+  const els = document.querySelectorAll(`[data-sec="${id}"]`);
+  if (!els.length) return;
+  const collapsing = !els[0].classList.contains('collapsed');
+  els.forEach(el => el.classList.toggle('collapsed', collapsing));
+  const collapsed = [...new Set(
+    [...document.querySelectorAll('[data-sec].collapsed')].map(e => e.dataset.sec)
+  )];
+  saveSections(collapsed);
+}
+
+function initSections() {
+  loadSections().forEach(id => {
+    document.querySelectorAll(`[data-sec="${id}"]`).forEach(el => el.classList.add('collapsed'));
+  });
 }
 
 // ── Go! ───────────────────────────────────────────────────────
