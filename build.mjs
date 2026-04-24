@@ -45,4 +45,11 @@ if (isDev) {
 } else {
   await esbuild.build(config);
   console.log('Build complete → dist/');
+
+  if (process.argv.includes('--deploy')) {
+    const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8')
+      .replace(/dist\/main\./g, 'main.');
+    fs.writeFileSync(path.join(__dirname, 'dist/index.html'), html);
+    console.log('Copied index.html → dist/ (paths rewritten)');
+  }
 }

@@ -6,7 +6,8 @@
     "dev":      "node build.mjs --dev",
     "build":    "node build.mjs",
     "lint":     "eslint src/",
-    "lint:fix": "eslint src/ --fix"
+    "lint:fix": "eslint src/ --fix",
+    "deploy":   "node build.mjs --deploy && wrangler pages deploy dist --project-name clocktask"
   },
   "devDependencies": {
     "esbuild": "^0.21.0",
