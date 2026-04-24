@@ -1,0 +1,48 @@
+.tog {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.tog input { opacity: 0; width: 0; height: 0; position: absolute; }
+
+.tog-track {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background .2s;
+}
+
+.tog-track::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #888;
+  top: 3px;
+  left: 3px;
+  transition: transform .2s, background .2s;
+}
+
+.tog input:checked + .tog-track { background: var(--accent); }
+.tog input:checked + .tog-track::after { transform: translateX(16px); background: #111; }
+
+.btn-test-sound {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 10px;
+  padding: 4px 9px;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-test-sound:hover { border-color: var(--accent); color: var(--accent); }

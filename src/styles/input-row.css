@@ -1,0 +1,68 @@
+.row { display: flex; gap: 8px; margin-bottom: 8px; }
+.col { flex: 1; }
+
+label.mini {
+  display: block;
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-bottom: 4px;
+}
+
+input[type=text],
+input[type=time],
+input[type=number] {
+  display: block;
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color .15s;
+}
+
+input:focus { border-color: var(--accent); }
+
+.btn-add {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px;
+  background: var(--accent);
+  color: #111;
+  border: none;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.btn-add:hover { background: #f7c548; }
+
+.btn-now {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+
+.btn-now:hover { border-color: var(--accent); color: var(--accent); }

@@ -1,0 +1,28 @@
+#popover {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  pointer-events: none;
+  display: none;
+  z-index: 200;
+  min-width: 168px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.75);
+}
+
+.pop-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.pop-dot    { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.pop-name   { font-size: 12px; font-weight: 500; }
+
+.pop-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--dim);
+  margin-bottom: 4px;
+}
+
+.pop-val { color: var(--text); font-variant-numeric: tabular-nums; font-size: 11px; }

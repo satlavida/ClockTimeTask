@@ -1,0 +1,34 @@
+.task-edit-times {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.task-edit-time-box {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.task-edit-time-lbl {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.task-edit-time-val {
+  font-size: 20px;
+  font-weight: 200;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  letter-spacing: -.02em;
+}
+
+.task-edit-time-val.start-val { color: #5B9BD5; }
+.task-edit-time-val.end-val   { color: var(--accent); }

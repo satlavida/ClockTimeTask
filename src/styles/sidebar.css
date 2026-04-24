@@ -1,0 +1,50 @@
+.sidebar {
+  width: 288px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.s-head {
+  padding: 26px 22px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.s-eyebrow {
+  font-size: 9px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.s-title {
+  font-size: 22px;
+  font-weight: 200;
+  letter-spacing: -.02em;
+}
+
+.s-title span { color: var(--accent); }
+
+.s-sec {
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.s-lbl {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}

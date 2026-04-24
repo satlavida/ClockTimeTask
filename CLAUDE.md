@@ -4,31 +4,69 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Single-file vanilla web app (`index.html`). No build step, no bundler, no dependencies. Open directly in a browser.
+Vanilla JS/HTML/CSS app with esbuild bundler. Source lives in `src/`, output in `dist/`. `index.html` at project root links `dist/main.css` + `dist/main.js`.
 
 ```bash
-open index.html        # macOS
+npm run dev    # dev server at http://localhost:3000 with watch mode
+npm run build  # production build → dist/
+npm run lint   # ESLint on src/
+open index.html        # macOS (needs dist/ to exist — run build first)
 ```
+
+## Deployment
+
+Hosted on Cloudflare Pages as the `clocktask` project.
+
+```bash
+wrangler pages deploy . --project-name clocktask   # deploy latest
+wrangler pages project list                        # list all projects
+```
+
+URLs:
+- Production: https://clocktask.satyajeetnigade.in
+- Pages: https://clocktask.pages.dev
 
 ## Architecture
 
-Everything lives in `index.html` in three sections: `<style>`, HTML markup, and a `<script>` block. The script is structured with clear comment banners (`// ── Section ───`) in this order:
+Modular ESM source in `src/`, bundled to `dist/main.js` + `dist/main.css` by esbuild. Static HTML structure in `index.html`.
 
-1. **Constants** — SVG geometry (`CX/CY`, ring radii `OR_O/OR_I/IR_O/IR_I`), colour palette
-2. **State (`S`)** — single mutable object: `mode`, `startTime`, `budget`, `tasks[]`, `settings`
-3. **Persistence** — `save()` / `load()` via `localStorage` key `clocktask_v4`
-4. **Init** — wires DOM events, hydrates state, starts `setInterval` tick
-5. **Helpers** — `p2`, `hhmm`, `polar`, `svgEl`, `getCycleMins`, `minsToAngle`, `durStr`, `absToTime`, `getBudgetMins`
-6. **Clock face** — `buildFace()` clears and redraws ticks + numerals; called at init and whenever the 24h setting changes
-7. **Hands** — `tickHands()` rotates SVG hand elements + calls `updateBoard()` every second; hour hand speed adapts to 12h vs 24h mode
-8. **Now board** — `getCurrentTask()` computes active/next task from wall clock vs task timeline; `updateBoard()` renders it
-9. **Mode / Free / Budget** — `setMode`, `addFreeTask`, `setBudgetInputMode`, `syncBudgetUI`, `applyBudget`
-10. **Task list** — `renderList()` with HTML5 drag-and-drop reorder; `delTask`, `setColor`
-11. **Stats** — `updateStats()` reads total duration and budget to populate footer
-12. **Arc drawing** — `redraw()` clears and redraws all SVG arc groups; `drawSpan()` handles multi-lap wrap; `donutPath()` builds SVG path strings; `drawBudgetMarker()` draws the red END line; `taskTimings[]` is populated here for popover lookup
-13. **Resize handles** — `addHandle()` places white dot handles between arcs; drag logic in `beginDrag` / `onDragMove` / `endDrag` pushes duration into adjacent tasks
-14. **Popover** — event-delegated `mousemove` on the SVG; reads `data-ti` attribute set during `drawSpan`
-15. **Settings** — modal open/close; `applySetting()` mutates `S.settings` and persists; `clock24h` change also triggers `buildFace()` + `redraw()`
+### Module layout
+
+```
+src/
+├── main.js              ← entry: imports CSS, calls init()
+├── app.js               ← init(): wires all sections, starts tick
+├── logic/
+│   ├── constants.js     ← CX/CY, ring radii, GAP_DEG, PALETTE, KEY, SEC_KEY
+│   ├── state.js         ← S object, save(), load()
+│   ├── time.js          ← getCycleMins, minsToAngle, absToTime, getBudgetMins, getFitRange, p2, hhmm, durStr
+│   ├── tasks.js         ← addFreeTask, applyBudget, delTask, clearAllTasks, setColor, reorderTask, saveTaskEdit
+│   ├── clock-geometry.js← polar, svgEl, donutPath
+│   ├── sections.js      ← toggleSection, initSections (collapsible sidebar sections)
+│   └── sound.js         ← playChime (Web Audio)
+├── styles/
+│   ├── main.css         ← @import chain for all partials
+│   └── *.css            ← one file per component/section
+└── ui/
+    ├── components/
+    │   └── TaskItem.js  ← createTaskItem(task, callbacks) → DOM element
+    ├── sections/
+    │   ├── ModePanel.js, StartTimePanel.js, FreeAddPanel.js
+    │   ├── BudgetPanel.js, TaskList.js, StatsFooter.js
+    ├── modals/
+    │   ├── SettingsModal.js, TaskEditModal.js
+    ├── clock/
+    │   ├── ClockSVG.js  ← buildFace, redraw, tickHands, arc drag resize
+    │   └── Popover.js   ← arc hover tooltip
+    └── NowBoard.js      ← live task board, countdown, chime boundary detection
+```
+
+### Key patterns
+
+- `app.js` defines a single `refresh()` closure that chains `renderList → redraw → updateStats → updateBoard`; every section callback calls it
+- Each `src/ui/sections/*.js` exports an `init*()` function (wires DOM events) and optionally a `sync*()` function (hydrates DOM from state)
+- `S` is a shared mutable object; mutators in `logic/tasks.js` call `save()` then return; callers chain `refresh()`
+- `taskTimings[]` is module-level in `ClockSVG.js`, rebuilt on every `redraw()`, exported for `Popover.js`
 
 ## Key data relationships
 

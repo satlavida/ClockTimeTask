@@ -1,0 +1,45 @@
+export default [
+  {
+    files: ['src/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: {
+        window:              'readonly',
+        document:            'readonly',
+        localStorage:        'readonly',
+        AudioContext:        'readonly',
+        webkitAudioContext:  'readonly',
+        setTimeout:          'readonly',
+        setInterval:         'readonly',
+        clearInterval:       'readonly',
+        Math:                'readonly',
+        Date:                'readonly',
+        console:             'readonly',
+        parseInt:            'readonly',
+        parseFloat:          'readonly',
+        isNaN:               'readonly',
+        String:              'readonly',
+        Array:               'readonly',
+        JSON:                'readonly',
+      },
+    },
+    rules: {
+      'no-unused-vars':       ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      'no-undef':             'error',
+      'prefer-const':         'error',
+      'no-var':               'error',
+      'eqeqeq':               ['error', 'always'],
+      'no-console':           'warn',
+      'no-duplicate-imports': 'error',
+    },
+  },
+  {
+    files: ['build.mjs', 'eslint.config.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: { process: 'readonly', console: 'readonly' },
+    },
+  },
+];
