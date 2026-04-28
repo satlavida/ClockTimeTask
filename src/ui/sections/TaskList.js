@@ -22,11 +22,12 @@ export function renderList(onChanged) {
   list.innerHTML = '';
 
   S.tasks.forEach((task, i) => {
-    const div = createTaskItem(task, {
+    const wrap = createTaskItem(task, {
       onEdit:        id => onChanged({ openEdit: id }),
       onDelete:      id => { delTask(id); onChanged(); },
       onColorChange: (id, color) => { setColor(id, color); onChanged(); },
       onNameClick:   (itemEl, id) => startNameEdit(itemEl, id, onChanged),
+      onChanged,
       onDragStart:   el => {
         dragIdx = i;
         setTimeout(() => el.classList.add('dragging'), 0);
@@ -47,8 +48,8 @@ export function renderList(onChanged) {
         onChanged();
       },
     });
-    div.dataset.i = i;
-    list.appendChild(div);
+    wrap.dataset.i = i;
+    list.appendChild(wrap);
   });
 }
 

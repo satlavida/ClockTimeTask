@@ -162,10 +162,21 @@
         <div class="nb-rem-lbl"   id="nbRemLbl"></div>
       </div>
       <div class="nb-actions">
+        <button class="nb-note-btn" id="btnAddNote" title="Add a sticky note">📝 Note</button>
+        <button class="nb-note-btn" id="btnAlignNotes" title="Cascade &amp; align notes">⊞ Align</button>
+        <button class="nb-note-btn" id="btnDownload" title="Export tasks &amp; notes as Markdown">↓ Export</button>
+        <div class="note-filter-wrap">
+          <select id="noteFilter" title="Filter notes by task">
+            <option value="">All notes</option>
+          </select>
+        </div>
         <button class="nb-settings-btn" id="btnOpenSettings" title="Settings">⚙</button>
       </div>
     </div>
   </div>
+
+  <!-- ── Sticky notes layer ───────────────────────── -->
+  <div id="notesLayer" class="notes-layer"></div>
 
   <!-- ── Clock ─────────────────────────────────────── -->
   <div class="clock-wrap">

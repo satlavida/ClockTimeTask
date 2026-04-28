@@ -14,6 +14,8 @@ import { initTaskEditModal, openTaskEdit, closeTaskEdit } from './ui/modals/Task
 import { initClockSVG, buildFace, redraw, tickHands } from './ui/clock/ClockSVG.js';
 import { initPopover } from './ui/clock/Popover.js';
 import { updateBoard } from './ui/NowBoard.js';
+import { initStickyNotes, renderNotes, addNoteAndRender, alignNotes, setNoteFilter } from './ui/StickyNotes.js';
+import { downloadMarkdown } from './logic/export.js';
 
 export function init() {
   load();
@@ -29,6 +31,7 @@ export function init() {
     redraw();
     updateStats();
     updateBoard();
+    renderNotes();
     if (opts.openEdit) openTaskEdit(opts.openEdit);
   }
 
@@ -62,6 +65,13 @@ export function init() {
 
   document.getElementById('btnOpenSettings').addEventListener('click', openSettings);
 
+  document.getElementById('btnAddNote').addEventListener('click', addNoteAndRender);
+  document.getElementById('btnAlignNotes').addEventListener('click', alignNotes);
+  document.getElementById('btnDownload').addEventListener('click', downloadMarkdown);
+  document.getElementById('noteFilter').addEventListener('change', e => {
+    setNoteFilter(e.target.value || null);
+  });
+
   // Escape closes any open modal
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeSettings(); closeTaskEdit(); }
@@ -78,6 +88,8 @@ export function init() {
   document.getElementById('setClock24h').checked    = S.settings.clock24h    ?? false;
   document.getElementById('setFitClock').checked    = S.settings.fitClock    ?? false;
   document.getElementById('setSoundAlerts').checked = S.settings.soundAlerts ?? false;
+
+  initStickyNotes({ getTasks: () => S.tasks });
 
   setInterval(() => { tickHands(); updateBoard(); }, 1000);
   tickHands();

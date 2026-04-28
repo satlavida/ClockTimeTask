@@ -4,6 +4,7 @@
   flex-direction: column;
   background: var(--bg);
   overflow: hidden;
+  position: relative;
 }
 
 .clock-wrap {

@@ -1,0 +1,115 @@
+.task-item-wrap {
+  margin-bottom: 5px;
+}
+
+.task-item-wrap .task-item {
+  margin-bottom: 0;
+}
+
+.subtask-list {
+  margin: 0 0 0 22px;
+  padding: 4px 0 2px;
+  border-left: 2px solid var(--border);
+  padding-left: 10px;
+}
+
+.subtask-list.hide { display: none; }
+
+.subtask-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-radius: 4px;
+  min-height: 28px;
+  transition: background .1s;
+}
+
+.subtask-item:hover { background: var(--surface2); }
+
+.sub-name {
+  flex: 1;
+  font-size: 11px;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+
+.sub-name:hover { color: var(--text); }
+
+.subtask-dur {
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  cursor: text;
+  background: var(--surface);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+
+.subtask-dur:hover { color: var(--dim); border-color: var(--dim); }
+
+.sub-del {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color .15s;
+  flex-shrink: 0;
+}
+
+.sub-del:hover { color: var(--red); }
+
+.sub-add-btn {
+  display: block;
+  width: 100%;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .06em;
+  padding: 4px 0;
+  margin-top: 4px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+  text-align: center;
+}
+
+.sub-add-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+.sub-name-edit,
+.sub-dur-edit {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 1px 5px;
+  outline: none;
+}
+
+.sub-name-edit { flex: 1; min-width: 0; }
+.sub-dur-edit  { width: 52px; font-variant-numeric: tabular-nums; }
+
+.t-sub-toggle {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color .15s;
+  flex-shrink: 0;
+}
+
+.t-sub-toggle:hover { color: var(--accent); }
