@@ -5,6 +5,7 @@ export const S = {
   startTime: null,
   budget: { inputMode: 'duration', hours: 2, mins: 0, endTimeStr: null, count: 3 },
   tasks: [],
+  notes: [],
   settings: { showTimeRemaining: true, clock24h: false, fitClock: false, soundAlerts: false },
 };
 
@@ -22,6 +23,7 @@ export function load() {
     S.budget    = { ...S.budget,   ...(d.budget   || {}) };
     S.settings  = { ...S.settings, ...(d.settings || {}) };
     S.tasks     = d.tasks   || [];
+    S.notes     = d.notes   || [];
     S.startTime = d.startTime ? new Date(d.startTime) : null;
   } catch (_) { /* corrupt storage — use defaults */ }
 }

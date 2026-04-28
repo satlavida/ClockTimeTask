@@ -1,0 +1,148 @@
+.notes-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  overflow: hidden;
+}
+
+.sticky-note {
+  position: absolute;
+  width: 210px;
+  min-height: 140px;
+  background: #1a1810;
+  border-top: 3px solid var(--note-accent, var(--accent));
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.6), 0 1px 4px rgba(0,0,0,.4);
+  pointer-events: all;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow .15s, opacity .15s;
+  user-select: none;
+}
+
+.sticky-note.dragging {
+  opacity: .85;
+  box-shadow: 0 12px 40px rgba(0,0,0,.8);
+  transform: scale(1.02);
+}
+
+.note-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px 4px;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  cursor: default;
+  flex-shrink: 0;
+}
+
+.note-drag-handle {
+  color: var(--muted);
+  font-size: 11px;
+  cursor: grab;
+  flex-shrink: 0;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.note-drag-handle:active { cursor: grabbing; }
+
+.note-task-select {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: .04em;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.note-task-select:hover { color: var(--text); }
+
+.note-task-select option {
+  background: #1e1e1e;
+  color: var(--text);
+}
+
+.note-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color .15s;
+}
+
+.note-close:hover { color: var(--red); }
+
+.note-body {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.55;
+  padding: 8px 10px;
+  resize: none;
+  outline: none;
+  min-height: 90px;
+  user-select: text;
+}
+
+.note-body::placeholder { color: var(--muted); }
+
+/* Note toolbar buttons in the now-board */
+.nb-note-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--dim);
+  font-size: 12px;
+  height: 28px;
+  padding: 0 8px;
+  cursor: pointer;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nb-note-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.note-filter-wrap {
+  display: flex;
+  align-items: center;
+}
+
+#noteFilter {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 11px;
+  height: 28px;
+  padding: 0 6px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color .15s;
+  max-width: 120px;
+}
+
+#noteFilter:hover,
+#noteFilter:focus { border-color: var(--dim); color: var(--text); }
+
+#noteFilter option { background: #1e1e1e; }

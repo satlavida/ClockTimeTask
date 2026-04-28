@@ -2,6 +2,7 @@ import { S, save } from '../../logic/state.js';
 import { CX, CY, OR_O, OR_I, IR_O, IR_I, GAP_DEG } from '../../logic/constants.js';
 import { getCycleMins, minsToAngle, getFitRange, getBudgetMins, p2 } from '../../logic/time.js';
 import { polar, svgEl, donutPath } from '../../logic/clock-geometry.js';
+import { scaleSubtasks } from '../../logic/tasks.js';
 
 export let taskTimings = []; // [{startAbs, endAbs}] parallel to S.tasks
 
@@ -190,6 +191,8 @@ export function redraw() {
     if (normDur  > 0) drawSpan(tStart,            normDur,  task.color, 1,    task.name, i);
     if (spillDur > 0) drawSpan(tStart + normDur, spillDur, '#e85555', 0.88, '⚠ ' + task.name, -1);
 
+    if (task.subtasks?.length) drawSubtaskTicks(task, tStart);
+
     if (i < S.tasks.length - 1) addHandle(tEnd, i);
 
     cursor = tEnd;
@@ -308,6 +311,35 @@ function drawBudgetMarker(endAbs) {
   g.appendChild(endTxt);
 }
 
+function drawSubtaskTicks(task, tStart) {
+  const fit = getFitRange();
+  const cycle = getCycleMins();
+  let cursor = tStart;
+  const subs = task.subtasks;
+  for (let i = 0; i < subs.length - 1; i++) {
+    cursor += subs[i].duration;
+    let deg, rO, rI;
+    if (fit) {
+      if (cursor <= fit.startAbs || cursor >= fit.endAbs) continue;
+      deg = (cursor - fit.startAbs) / fit.span * 360;
+      rO = OR_O; rI = IR_I;
+    } else {
+      const lapN = Math.floor(cursor / cycle);
+      if (lapN > 1) continue;
+      deg = minsToAngle(cursor % cycle);
+      [rO, rI] = lapN === 0 ? [OR_O, OR_I] : [IR_O, IR_I];
+    }
+    const midR = (rO + rI) / 2;
+    const [x1, y1] = polar(CX, CY, midR - 6, deg);
+    const [x2, y2] = polar(CX, CY, midR + 6, deg);
+    document.getElementById('gLabels').appendChild(svgEl('line', {
+      x1, y1, x2, y2,
+      stroke: '#0f0f0f', 'stroke-width': '2', 'stroke-linecap': 'round',
+      'pointer-events': 'none',
+    }));
+  }
+}
+
 function addHandle(endAbs, taskIdx) {
   const fit = getFitRange();
   let deg, midR;
@@ -397,6 +429,7 @@ function onDragMove(e) {
     }
   }
 
+  if (S.tasks[idx].subtasks?.length) scaleSubtasks(S.tasks[idx], newDur);
   S.tasks[idx].duration = newDur;
   save();
   if (onRedrawCallback) onRedrawCallback();
