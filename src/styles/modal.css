@@ -105,3 +105,14 @@
 }
 
 .btn-save:hover { background: #f7c548; }
+
+.privacy-p {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.65;
+  margin-bottom: 14px;
+}
+
+.privacy-p:last-child { margin-bottom: 0; }
+
+.privacy-updated { color: var(--muted); }

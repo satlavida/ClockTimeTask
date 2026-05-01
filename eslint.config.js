@@ -7,6 +7,7 @@ export default [
       globals: {
         window:              'readonly',
         document:            'readonly',
+        navigator:           'readonly',
         localStorage:        'readonly',
         AudioContext:        'readonly',
         webkitAudioContext:  'readonly',
