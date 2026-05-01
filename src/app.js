@@ -10,6 +10,7 @@ import { updateStats } from './ui/sections/StatsFooter.js';
 
 import { initSettingsModal, openSettings, closeSettings } from './ui/modals/SettingsModal.js';
 import { initTaskEditModal, openTaskEdit, closeTaskEdit } from './ui/modals/TaskEditModal.js';
+import { initPrivacyModal, openPrivacy, closePrivacy } from './ui/modals/PrivacyModal.js';
 
 import { initClockSVG, buildFace, redraw, tickHands } from './ui/clock/ClockSVG.js';
 import { initPopover } from './ui/clock/Popover.js';
@@ -59,11 +60,14 @@ export function init() {
 
   initTaskEditModal({ onSaved: refresh });
 
+  initPrivacyModal();
+
   initClockSVG({ onDragEnd: refresh });
 
   initPopover();
 
   document.getElementById('btnOpenSettings').addEventListener('click', openSettings);
+  document.getElementById('btnOpenPrivacy').addEventListener('click', openPrivacy);
 
   document.getElementById('btnAddNote').addEventListener('click', addNoteAndRender);
   document.getElementById('btnAlignNotes').addEventListener('click', alignNotes);
@@ -74,7 +78,7 @@ export function init() {
 
   // Escape closes any open modal
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeSettings(); closeTaskEdit(); }
+    if (e.key === 'Escape') { closeSettings(); closeTaskEdit(); closePrivacy(); }
   });
 
   initSections();

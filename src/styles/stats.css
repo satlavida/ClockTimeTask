@@ -21,3 +21,20 @@
 }
 
 .over { color: var(--red); }
+
+.privacy-link {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0;
+  margin-left: auto;
+  align-self: flex-end;
+  transition: color .15s;
+}
+
+.privacy-link:hover { color: var(--dim); }

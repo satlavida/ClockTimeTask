@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ClockTask</title>
+  <link rel="manifest" href="dist/manifest.json" />
+  <meta name="theme-color" content="#F5B731" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ClockTask" />
+  <link rel="apple-touch-icon" href="dist/icons/icon-192.png" />
   <link rel="stylesheet" href="dist/main.css" />
 </head>
 <body>
@@ -139,6 +146,7 @@
       <div class="stat-v" id="sEnds">—</div>
       <div class="stat-l">Ends at</div>
     </div>
+    <button class="privacy-link" id="btnOpenPrivacy">Privacy</button>
   </div>
 </div>
 
@@ -347,6 +355,23 @@
   <div class="pop-row"><span>Start</span>    <span class="pop-val" id="popStart">—</span></div>
   <div class="pop-row"><span>End</span>      <span class="pop-val" id="popEnd">—</span></div>
   <div class="pop-row"><span>Duration</span> <span class="pop-val" id="popDur">—</span></div>
+</div>
+
+<!-- ═══════════════════════  PRIVACY MODAL  ════════════════════ -->
+<div class="modal-overlay" id="privacyOverlay">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title">Privacy Policy</div>
+      <button class="modal-close" id="btnClosePrivacy">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="privacy-p">ClockTask stores all your data — tasks, notes, and settings — exclusively in your browser's <strong>localStorage</strong>. Nothing is transmitted to any server.</p>
+      <p class="privacy-p">No analytics, no tracking, no cookies, no accounts. The app works entirely offline once loaded.</p>
+      <p class="privacy-p">The <strong>Export</strong> feature generates a Markdown file downloaded directly to your device — nothing is uploaded anywhere.</p>
+      <p class="privacy-p">If AI-assisted features are added in the future (e.g. via OpenRouter), you will be clearly notified before any data leaves your device, and those features will be strictly opt-in.</p>
+      <p class="privacy-p privacy-updated">Last updated: May 2025</p>
+    </div>
+  </div>
 </div>
 
 <script type="module" src="dist/main.js"></script>
