@@ -1,5 +1,8 @@
 export default [
   {
+    ignores: ['backend/**', 'tests/**'],
+  },
+  {
     files: ['src/**/*.js'],
     languageOptions: {
       ecmaVersion: 2022,

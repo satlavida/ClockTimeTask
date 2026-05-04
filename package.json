@@ -7,9 +7,15 @@
     "build": "node build.mjs",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
-    "deploy": "node build.mjs --deploy && wrangler pages deploy dist --project-name clocktask"
+    "deploy": "node build.mjs --deploy && wrangler pages deploy dist --project-name clocktask",
+    "test": "playwright test --config=tests/playwright.config.ts",
+    "test:ui": "playwright test --config=tests/playwright.config.ts --ui",
+    "screenshots": "playwright test --config=tests/playwright.config.ts tests/e2e/screenshots.spec.ts",
+    "backend:dev": "npm --prefix backend run dev",
+    "backend:deploy": "npm --prefix backend run deploy"
   },
   "devDependencies": {
+    "@playwright/test": "^1.44.0",
     "esbuild": "^0.21.0",
     "eslint": "^9.0.0"
   }

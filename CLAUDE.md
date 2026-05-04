@@ -76,6 +76,29 @@ src/
 - Arc positions: `getCycleMins()` returns 720 (12h) or 1440 (24h); `minsToAngle(lapPos)` converts 0–cycle minutes → 0–360° without modulo (avoids a 0° collapse at lap boundaries); `lapN = floor(absMin/cycle)` selects outer ring (`lapN=0`) vs inner overflow ring (`lapN=1`)
 - `S.settings.clock24h` (bool) switches the entire clock — face numerals, hand speed, and arc cycle — between 12h and 24h mode
 
+## Backend (Cloudflare Worker)
+
+Source in `backend/src/`, config at `backend/wrangler.toml`. Runtime: Cloudflare Workers. Framework: Hono. Runs independently from the frontend Pages deployment.
+
+```bash
+npm run backend:dev     # local worker at http://localhost:8787
+npm run backend:deploy  # deploy to Cloudflare Workers
+```
+
+Install backend deps separately: `npm install --prefix backend`
+
+## Testing
+
+Playwright E2E tests in `tests/e2e/`. Config at `tests/playwright.config.ts`. Screenshots saved to `tests/screenshots/` (gitignored — generated output).
+
+```bash
+npm test              # run all tests headlessly (auto-starts dev server)
+npm run test:ui       # open Playwright UI for interactive debugging
+npm run screenshots   # screenshot sweep only → tests/screenshots/*.png
+```
+
+Screenshots are named `NN-description.png`. Run `npm run screenshots` after any visual change to regenerate for AI review.
+
 ## Design language
 
 Braun clock aesthetic: dark surfaces (`#0f0f0f` bg, `#181818` surface), white/grey clock elements, amber accent `#F5B731` for second hand, live dot, and countdown. Typography is Helvetica Neue weight-200 for large display text, weight-300 for numbers. No external fonts or icon libraries.
