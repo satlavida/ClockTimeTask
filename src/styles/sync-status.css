@@ -6,6 +6,14 @@
   font-size: 10px;
   color: var(--dim);
   letter-spacing: .04em;
+  width: 100px;
+  flex-shrink: 0;
+}
+
+.sync-lbl {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sync-dot {
