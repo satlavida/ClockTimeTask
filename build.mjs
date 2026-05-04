@@ -75,10 +75,10 @@ if (isDev) {
     fs.writeFileSync(path.join(__dirname, 'dist/index.html'), html);
     console.log('Copied index.html → dist/ (paths rewritten)');
 
-    const buildDate = new Date().toISOString().slice(0, 10);
+    const buildDate = Date.now();
     const swSrc = fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8')
       .replace('__BUILD_DATE__', buildDate);
     fs.writeFileSync(path.join(__dirname, 'dist/sw.js'), swSrc);
-    console.log(`Copied sw.js → dist/sw.js (cache key: clocktask-v${buildDate})`);
+    console.log(`Copied sw.js → dist/sw.js (cache key: clocktask-v${buildDate} / ${new Date(buildDate).toISOString()})`);
   }
 }
