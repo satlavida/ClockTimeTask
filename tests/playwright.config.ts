@@ -10,6 +10,7 @@ export default defineConfig({
     baseURL: 'http://localhost:3000',
     screenshot: 'only-on-failure',
     video: 'off',
+    serviceWorkers: 'block',
   },
   outputDir: './test-results',
   webServer: {

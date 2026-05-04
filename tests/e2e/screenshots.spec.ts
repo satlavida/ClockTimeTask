@@ -14,7 +14,7 @@ async function shot(page: Page, name: string) {
 async function freshPage(page: Page) {
   await page.goto('/');
   await page.evaluate(() => localStorage.clear());
-  await page.reload();
+  await page.goto('/');
   await page.waitForTimeout(300);
 }
 
@@ -83,5 +83,115 @@ test.describe('Screenshot sweep', () => {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(200);
     await shot(page, '08-24h-clock');
+  });
+
+  test('09-session-modal-home', async ({ page }) => {
+    await freshPage(page);
+    await page.click('#btnOpenSession');
+    await page.waitForSelector('#sessionOverlay.open');
+    await shot(page, '09-session-modal-home');
+  });
+
+  test('10-session-modal-create', async ({ page }) => {
+    await freshPage(page);
+    await page.click('#btnOpenSession');
+    await page.waitForSelector('#sessionOverlay.open');
+    await page.click('#btnGoCreate');
+    await shot(page, '10-session-modal-create');
+  });
+
+  test('11-session-modal-join', async ({ page }) => {
+    await freshPage(page);
+    await page.click('#btnOpenSession');
+    await page.waitForSelector('#sessionOverlay.open');
+    await page.click('#btnGoJoin');
+    await shot(page, '11-session-modal-join');
+  });
+
+  test('12-session-switcher-open', async ({ page }) => {
+    await freshPage(page);
+    await page.click('#btnSessionChip');
+    await page.waitForSelector('#sessionDrop.open');
+    await shot(page, '12-session-switcher-open');
+  });
+
+  test('13-session-switcher-cloud', async ({ page }) => {
+    await freshPage(page);
+    await page.evaluate(() => {
+      const sessions = [
+        { id: 'local', name: 'Local', type: 'local', permissions: [], createdAt: '' },
+        {
+          id: 'CLOUDSESSION123', name: 'Work Plan', type: 'cloud',
+          shareCode: 'CODE', permissions: ['view_tasks', 'manage_share'],
+          createdAt: new Date().toISOString(),
+        },
+      ];
+      localStorage.setItem('clocktask_sessions_v1', JSON.stringify(sessions));
+    });
+    await page.reload();
+    await page.waitForTimeout(200);
+    await page.click('#btnSessionChip');
+    await page.waitForSelector('#sessionDrop.open');
+    await shot(page, '13-session-switcher-cloud');
+  });
+
+  test('14-share-modal', async ({ page }) => {
+    await freshPage(page);
+    await page.evaluate(() => {
+      const sessions = [
+        { id: 'local', name: 'Local', type: 'local', permissions: [], createdAt: '' },
+        {
+          id: 'CLOUDSESSION123', name: 'Work Plan', type: 'cloud',
+          shareCode: 'OWNERCODE12345678', permissions: ['view_tasks', 'manage_share'],
+          createdAt: new Date().toISOString(),
+        },
+      ];
+      localStorage.setItem('clocktask_sessions_v1', JSON.stringify(sessions));
+      localStorage.setItem('clocktask_active_session_v1', 'CLOUDSESSION123');
+    });
+    await page.reload();
+    await page.waitForTimeout(200);
+
+    // Mock share codes list
+    await page.route('http://localhost:8787/api/sessions/CLOUDSESSION123/share-codes', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          { shareCode: 'OWNERCODE12345678', permissions: ['view_tasks', 'manage_share'], createdAt: new Date().toISOString() },
+          { shareCode: 'VIEWERCODE123456', permissions: ['view_tasks'], createdAt: new Date().toISOString() },
+        ]),
+      });
+    });
+
+    const shareBtn = page.locator('#sessionList .ss-item-action:not(.danger)').first();
+    await page.click('#btnSessionChip');
+    await shareBtn.click();
+    await page.waitForSelector('#shareOverlay.open');
+    await page.waitForTimeout(300);
+    await shot(page, '14-share-modal');
+  });
+
+  test('15-sync-status-badge', async ({ page }) => {
+    await freshPage(page);
+    await page.route('http://localhost:8787/api/sessions/CLOUDSESSION123/sync', async route => {
+      await route.fulfill({ status: 204 });
+    });
+    await page.evaluate(() => {
+      const sessions = [
+        { id: 'local', name: 'Local', type: 'local', permissions: [], createdAt: '' },
+        {
+          id: 'CLOUDSESSION123', name: 'Work Plan', type: 'cloud',
+          shareCode: 'CODE', permissions: ['view_tasks'],
+          createdAt: new Date().toISOString(),
+          lastSynced: new Date().toISOString(),
+        },
+      ];
+      localStorage.setItem('clocktask_sessions_v1', JSON.stringify(sessions));
+      localStorage.setItem('clocktask_active_session_v1', 'CLOUDSESSION123');
+    });
+    await page.reload();
+    await page.waitForTimeout(500);
+    await shot(page, '15-sync-status-badge');
   });
 });

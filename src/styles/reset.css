@@ -13,4 +13,5 @@ body {
   overflow: hidden;
 }
 
-.hide { display: none !important; }
+.hide    { display: none !important; }
+[hidden]  { display: none !important; }

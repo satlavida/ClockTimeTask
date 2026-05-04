@@ -5,3 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ENVIRONMENT = "development"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "c2fdc9c938024e23ad98e3b339e28854"

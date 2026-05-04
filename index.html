@@ -20,12 +20,27 @@
   <div class="s-head">
     <div class="s-eyebrow">Time Planner</div>
     <div class="s-title">Clock<span>Task</span></div>
+    <div id="sessionSwitcher">
+      <button class="ss-chip" id="btnSessionChip">
+        <span class="ss-dot local"></span>
+        <span class="ss-lbl">Local</span>
+        <span class="ss-chevron">▾</span>
+      </button>
+      <div class="ss-drop" id="sessionDrop">
+        <div class="ss-list" id="sessionList"></div>
+        <div class="ss-divider"></div>
+        <div class="ss-actions">
+          <button class="ss-action-btn" id="btnNewSession">+ New cloud session</button>
+          <button class="ss-action-btn" id="btnJoinSession">→ Join session</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="sidebar-scroll">
 
     <!-- Mode -->
-    <div class="s-sec" data-sec="mode">
+    <div class="s-sec" data-sec="mode" data-perm="edit_budget">
       <div class="s-sec-hd">
         <div class="s-lbl">Mode</div>
         <span class="s-chevron">▾</span>
@@ -39,7 +54,7 @@
     </div>
 
     <!-- Start time -->
-    <div class="s-sec" data-sec="start">
+    <div class="s-sec" data-sec="start" data-perm="edit_budget">
       <div class="s-sec-hd">
         <div class="s-lbl">Start Time</div>
         <span class="s-chevron">▾</span>
@@ -51,7 +66,7 @@
     </div>
 
     <!-- Free panel -->
-    <div class="s-sec" id="freePanel" data-sec="add-task">
+    <div class="s-sec" id="freePanel" data-sec="add-task" data-perm="edit_tasks">
       <div class="s-sec-hd">
         <div class="s-lbl">Add Task</div>
         <span class="s-chevron">▾</span>
@@ -75,7 +90,7 @@
     </div>
 
     <!-- Budget panel -->
-    <div class="s-sec hide" id="budgetPanel" data-sec="add-task">
+    <div class="s-sec hide" id="budgetPanel" data-sec="add-task" data-perm="edit_budget">
       <div class="s-sec-hd">
         <div class="s-lbl">Budget</div>
         <span class="s-chevron">▾</span>
@@ -117,7 +132,7 @@
       <div class="list-hd">
         <div class="s-lbl">Tasks</div>
         <div style="display:flex;align-items:center;gap:6px">
-          <button class="btn-clear" id="btnClearAll">Clear all</button>
+          <button class="btn-clear" id="btnClearAll" data-perm="edit_tasks">Clear all</button>
           <span class="s-chevron">▾</span>
         </div>
       </div>
@@ -178,6 +193,11 @@
             <option value="">All notes</option>
           </select>
         </div>
+        <div id="syncStatus" class="sync-status" hidden>
+          <span class="sync-dot"></span>
+          <span class="sync-lbl"></span>
+        </div>
+        <button class="nb-note-btn" id="btnOpenSession" title="Cloud sessions">☁</button>
         <button class="nb-settings-btn" id="btnOpenSettings" title="Settings">⚙</button>
       </div>
     </div>
@@ -370,6 +390,126 @@
       <p class="privacy-p">The <strong>Export</strong> feature generates a Markdown file downloaded directly to your device — nothing is uploaded anywhere.</p>
       <p class="privacy-p">If AI-assisted features are added in the future (e.g. via OpenRouter), you will be clearly notified before any data leaves your device, and those features will be strictly opt-in.</p>
       <p class="privacy-p privacy-updated">Last updated: May 2025</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════  SESSION MODAL  ═════════════════════ -->
+<div class="modal-overlay" id="sessionOverlay">
+  <div class="modal" style="width:420px">
+    <div class="modal-hd">
+      <div class="modal-title">Cloud Sessions</div>
+      <button class="modal-close" id="btnCloseSession">×</button>
+    </div>
+    <div class="modal-body modal-views">
+
+      <!-- Home: choose create or join -->
+      <div id="sessionView-home">
+        <div class="session-home-btns">
+          <button class="btn-session-choice" id="btnGoCreate">
+            <span class="choice-icon">＋</span>New session
+          </button>
+          <button class="btn-session-choice" id="btnGoJoin">
+            <span class="choice-icon">→</span>Join session
+          </button>
+        </div>
+      </div>
+
+      <!-- Create -->
+      <div id="sessionView-create" class="hidden">
+        <button class="btn-back" id="btnBackCreate">← Back</button>
+        <div style="margin-bottom:12px">
+          <label class="mini">Session name</label>
+          <input type="text" id="sessionNameInput" placeholder="e.g. Work planning" />
+        </div>
+        <label class="import-row">
+          <input type="checkbox" id="sessionImportToggle" checked />
+          Import current tasks &amp; notes
+        </label>
+        <div class="session-error" id="sessionCreateError" hidden></div>
+        <div style="margin-top:16px">
+          <button class="btn-save" id="btnCreateSession" style="width:100%">Create Session</button>
+        </div>
+      </div>
+
+      <!-- Join -->
+      <div id="sessionView-join" class="hidden">
+        <button class="btn-back" id="btnBackJoin">← Back</button>
+        <div style="margin-bottom:12px">
+          <label class="mini">Session ID</label>
+          <input type="text" id="joinSessionId" placeholder="12-character session ID" style="font-family:monospace" />
+        </div>
+        <div style="margin-bottom:12px">
+          <label class="mini">Share Code</label>
+          <input type="text" id="joinShareCode" placeholder="16-character share code" style="font-family:monospace" />
+        </div>
+        <div class="session-error" id="sessionJoinError" hidden></div>
+        <div style="margin-top:16px">
+          <button class="btn-save" id="btnDoJoin" style="width:100%">Join</button>
+        </div>
+      </div>
+
+      <!-- Success -->
+      <div id="sessionView-success" class="hidden">
+        <p style="font-size:13px;margin-bottom:16px;color:var(--text)">
+          Session created. Save your share code — it won't be shown again.
+        </p>
+        <label class="mini">Session ID</label>
+        <div class="result-row" style="margin-top:4px">
+          <input type="text" id="createResultId" readonly />
+          <button class="btn-copy" id="btnCopySessionId">Copy</button>
+        </div>
+        <label class="mini">Owner Share Code</label>
+        <div class="result-row" style="margin-top:4px">
+          <input type="text" id="createResultCode" readonly />
+          <button class="btn-copy" id="btnCopyShareCode">Copy</button>
+        </div>
+        <div style="margin-top:16px">
+          <button class="btn-save" id="btnSessionDone" style="width:100%">Done</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════  SHARE MODAL  ══════════════════════════ -->
+<div class="modal-overlay" id="shareOverlay">
+  <div class="modal" style="width:440px">
+    <div class="modal-hd">
+      <div class="modal-title">Share Session</div>
+      <button class="modal-close" id="btnCloseShare">×</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="modal-section-lbl">Existing Share Codes</div>
+      <div id="shareCodeList"></div>
+
+      <div class="modal-section-lbl" style="margin-top:20px">Create New Code</div>
+      <div class="share-presets">
+        <button class="share-preset-btn" id="sharePreset-view">View only</button>
+        <button class="share-preset-btn" id="sharePreset-collaborator">Collaborator</button>
+        <button class="share-preset-btn" id="sharePreset-full">Full access</button>
+      </div>
+      <div class="share-perm-checks" id="sharePermChecks">
+        <label><input type="checkbox" value="view_tasks"    checked /> View tasks</label>
+        <label><input type="checkbox" value="edit_tasks"    checked /> Edit tasks</label>
+        <label><input type="checkbox" value="reorder_tasks" checked /> Reorder tasks</label>
+        <label><input type="checkbox" value="view_notes"    checked /> View notes</label>
+        <label><input type="checkbox" value="edit_notes"    checked /> Edit notes</label>
+        <label><input type="checkbox" value="edit_budget"         /> Edit budget</label>
+      </div>
+      <button class="btn-create-link" id="btnCreateShareCode">Create Link</button>
+
+      <div id="newShareCodeRow" hidden style="margin-top:12px">
+        <label class="mini">New share code</label>
+        <div class="result-row" style="margin-top:4px">
+          <input type="text" id="newShareCodeValue" readonly style="font-family:monospace;font-size:12px" />
+          <button class="btn-copy" id="btnCopyNewCode">Copy</button>
+        </div>
+      </div>
+
+      <div class="session-error" id="shareError" hidden style="margin-top:8px"></div>
     </div>
   </div>
 </div>

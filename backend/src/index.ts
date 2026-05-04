@@ -1,8 +1,10 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-
-type Env = { ENVIRONMENT: string };
+import type { Env } from './types.js';
+import sessions from './routes/sessions.js';
+import sync from './routes/sync.js';
+import shareCodes from './routes/shareCodes.js';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -14,12 +16,15 @@ app.use('/api/*', cors({
     'https://clocktask.satyajeetnigade.in',
   ],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.get('/api/health', (c) =>
   c.json({ ok: true, env: c.env.ENVIRONMENT, ts: new Date().toISOString() })
 );
 
-// TODO: add routes here
+app.route('/api/sessions', sessions);
+app.route('/api/sessions', sync);
+app.route('/api/sessions', shareCodes);
 
 export default app;

@@ -17,6 +17,7 @@
   "devDependencies": {
     "@playwright/test": "^1.44.0",
     "esbuild": "^0.21.0",
-    "eslint": "^9.0.0"
+    "eslint": "^9.0.0",
+    "yjs": "^13.6.30"
   }
 }
