@@ -1,4 +1,5 @@
-import { S, load } from './logic/state.js';
+import { S, load, save } from './logic/state.js';
+import { getActivePermissions, isCloudSession, getSessions } from './logic/sessions.js';
 import { initSections } from './logic/sections.js';
 
 import { initModePanel, syncModeUI } from './ui/sections/ModePanel.js';
@@ -11,12 +12,17 @@ import { updateStats } from './ui/sections/StatsFooter.js';
 import { initSettingsModal, openSettings, closeSettings } from './ui/modals/SettingsModal.js';
 import { initTaskEditModal, openTaskEdit, closeTaskEdit } from './ui/modals/TaskEditModal.js';
 import { initPrivacyModal, openPrivacy, closePrivacy } from './ui/modals/PrivacyModal.js';
+import { initSessionModal, openSessionModal, closeSessionModal } from './ui/modals/SessionModal.js';
+import { initShareModal, openShareModal, closeShareModal } from './ui/modals/ShareModal.js';
 
 import { initClockSVG, buildFace, redraw, tickHands } from './ui/clock/ClockSVG.js';
 import { initPopover } from './ui/clock/Popover.js';
 import { updateBoard } from './ui/NowBoard.js';
 import { initStickyNotes, renderNotes, addNoteAndRender, alignNotes, setNoteFilter } from './ui/StickyNotes.js';
 import { downloadMarkdown } from './logic/export.js';
+
+import { initSessionSwitcher, syncSwitcher } from './ui/components/SessionSwitcher.js';
+import { initSyncStatus, schedulePush, refreshSyncDisplay } from './ui/components/SyncStatus.js';
 
 export function init() {
   load();
@@ -26,6 +32,13 @@ export function init() {
     S.startTime.setSeconds(0, 0);
   }
 
+  function applyPermissions() {
+    const perms = getActivePermissions();
+    document.querySelectorAll('[data-perm]').forEach(el => {
+      el.hidden = !perms.includes(el.dataset.perm);
+    });
+  }
+
   // Called after any task/state change that requires full re-render
   function refresh(opts = {}) {
     renderList(refresh);
@@ -33,7 +46,21 @@ export function init() {
     updateStats();
     updateBoard();
     renderNotes();
+    applyPermissions();
     if (opts.openEdit) openTaskEdit(opts.openEdit);
+    schedulePush();
+  }
+
+  // Called when active session is switched or remote state loaded
+  function onSessionSwitch() {
+    load();
+    if (!S.startTime) { S.startTime = new Date(); S.startTime.setSeconds(0, 0); }
+    syncModeUI();
+    syncStartInput();
+    syncBudgetInputs();
+    refresh();
+    syncSwitcher();
+    refreshSyncDisplay();
   }
 
   // Settings changes that affect clock geometry
@@ -62,12 +89,26 @@ export function init() {
 
   initPrivacyModal();
 
+  initSessionModal({ onSessionChanged: onSessionSwitch });
+
+  initShareModal();
+
+  initSessionSwitcher({
+    onSwitch: onSessionSwitch,
+    onNew:    () => { openSessionModal(); document.getElementById('btnGoCreate')?.click(); },
+    onJoin:   () => { openSessionModal(); document.getElementById('btnGoJoin')?.click(); },
+    onShare:  openShareModal,
+  });
+
+  initSyncStatus({ onStateUpdated: onSessionSwitch });
+
   initClockSVG({ onDragEnd: refresh });
 
   initPopover();
 
   document.getElementById('btnOpenSettings').addEventListener('click', openSettings);
   document.getElementById('btnOpenPrivacy').addEventListener('click', openPrivacy);
+  document.getElementById('btnOpenSession').addEventListener('click', openSessionModal);
 
   document.getElementById('btnAddNote').addEventListener('click', addNoteAndRender);
   document.getElementById('btnAlignNotes').addEventListener('click', alignNotes);
@@ -78,7 +119,10 @@ export function init() {
 
   // Escape closes any open modal
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeSettings(); closeTaskEdit(); closePrivacy(); }
+    if (e.key === 'Escape') {
+      closeSettings(); closeTaskEdit(); closePrivacy();
+      closeSessionModal(); closeShareModal();
+    }
   });
 
   initSections();
@@ -86,6 +130,7 @@ export function init() {
   renderList(refresh);
   redraw();
   updateStats();
+  applyPermissions();
 
   // Sync settings toggles
   document.getElementById('setShowRem').checked     = S.settings.showTimeRemaining;
@@ -94,6 +139,9 @@ export function init() {
   document.getElementById('setSoundAlerts').checked = S.settings.soundAlerts ?? false;
 
   initStickyNotes({ getTasks: () => S.tasks });
+
+  syncSwitcher();
+  refreshSyncDisplay();
 
   setInterval(() => { tickHands(); updateBoard(); }, 1000);
   tickHands();

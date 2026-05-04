@@ -1,0 +1,147 @@
+/* Session switcher — sits below the app title in the sidebar header */
+#sessionSwitcher {
+  position: relative;
+  margin-top: 10px;
+}
+
+.ss-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 10px 4px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--text);
+  letter-spacing: .03em;
+  transition: border-color .15s;
+  max-width: 100%;
+}
+
+.ss-chip:hover { border-color: var(--dim); }
+
+.ss-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--dim);
+}
+
+.ss-dot.cloud { background: #6EC98C; }
+.ss-dot.local { background: var(--dim); }
+
+.ss-lbl {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+.ss-chevron {
+  font-size: 8px;
+  color: var(--dim);
+  margin-left: auto;
+}
+
+/* Dropdown */
+.ss-drop {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.7);
+  z-index: 200;
+  overflow: hidden;
+}
+
+.ss-drop.open { display: block; }
+
+.ss-list { padding: 4px 0; }
+
+.ss-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background .1s;
+  gap: 6px;
+}
+
+.ss-item:hover     { background: var(--surface2); }
+.ss-item.active    { background: rgba(245,183,49,.07); }
+
+.ss-item-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.ss-item-name {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ss-item-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.ss-item-action {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color .15s, background .15s;
+}
+
+.ss-item-action:hover         { background: var(--surface2); color: var(--text); }
+.ss-item-action.danger:hover  { color: var(--red); }
+
+.ss-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.ss-actions {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.ss-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  cursor: pointer;
+  text-align: left;
+  transition: color .15s, background .15s;
+}
+
+.ss-action-btn:hover { background: var(--surface2); color: var(--accent); }
