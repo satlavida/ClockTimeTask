@@ -1,4 +1,5 @@
 import { Page } from '@playwright/test';
+export type WsBehavior = 'connected' | 'silent' | 'fail';
 
 export const API = 'http://localhost:8787/api/sessions';
 
@@ -81,6 +82,46 @@ export async function encryptForSession(
     },
     { sessionId, shareCode, plaintext }
   );
+}
+
+// Mock all WebSocket connections (ws://localhost:*/**) so the client connects
+// successfully without a real backend.
+//
+//   'connected' (default) — accepts the WS, replies to 'auth' with a
+//     'connected' message carrying the provided encryptedData/crdtState.
+//   'silent' — accepts the WS but never sends any messages (badge stays
+//     'connecting', useful for push-only tests).
+//   'fail' — immediately closes the connection (triggers reconnect loop).
+export async function mockWebSocket(
+  page: Page,
+  opts: {
+    behavior?: WsBehavior;
+    encryptedData?: string | null;
+    crdtState?: string;
+    version?: number;
+  } = {}
+): Promise<void> {
+  const behavior      = opts.behavior      ?? 'connected';
+  const encryptedData = opts.encryptedData ?? null;
+  const crdtState     = opts.crdtState     ?? '';
+  const version       = opts.version       ?? 1;
+
+  await page.routeWebSocket(/ws:\/\/localhost:\d+\/.*/, ws => {
+    if (behavior === 'fail') {
+      ws.close();
+      return;
+    }
+    if (behavior === 'connected') {
+      ws.onMessage(message => {
+        let msg: { type: string };
+        try { msg = JSON.parse(message.toString()); } catch (_) { return; }
+        if (msg.type === 'auth') {
+          ws.send(JSON.stringify({ type: 'connected', encryptedData, crdtState, version }));
+        }
+      });
+    }
+    // 'silent': accept connection but never send messages
+  });
 }
 
 // Minimal valid state JSON the app can load without errors.

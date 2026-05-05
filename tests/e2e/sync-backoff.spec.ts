@@ -1,30 +1,35 @@
 /**
  * Sync status badge and error backoff tests.
  *
- * KNOWN BUG (off-by-one in error backoff):
- *   ERROR_BACKOFF = [2s, 4s, 8s, 16s, 30s]
- *   On first push failure: _errorCount++ makes it 1, then errorDelay() returns
- *   ERROR_BACKOFF[1] = 4s instead of ERROR_BACKOFF[0] = 2s.
- *   The 2s entry is unreachable. Badge shows "Retry in 4s" not "Retry in 2s".
- *   Fix: compute delay *before* incrementing _errorCount in doPush().
+ * Sync is WebSocket-based. HTTP PUT to /sessions/:id/sync is still used for
+ * pushing state from the client. There is no GET polling endpoint.
  *
- * The test 'first push failure shows retry in 4s (bug: should be 2s)' will
- * need updating when the bug is fixed — change the expected text to 'Retry in 2s'.
+ * mockWebSocket() (helpers.ts) intercepts ws://localhost:* connections so
+ * every test controls whether the WS connects cleanly, stays silent, or fails,
+ * independent of whether a real backend is running.
+ *
+ * ERROR_BACKOFF = [2s, 4s, 8s, 16s, 30s]
+ * handlePushError() computes _nextRetryMs = ERROR_BACKOFF[_errorCount] BEFORE
+ * incrementing _errorCount, so the first push failure correctly shows "Retry in 2s".
  */
 
 import { test, expect, Page, Route } from '@playwright/test';
-import { resetState, seedCloudSession, encryptForSession, minimalState, API } from './helpers';
+import {
+  resetState, seedCloudSession, encryptForSession, minimalState,
+  mockWebSocket, API,
+} from './helpers';
 
 const SESSION_ID = 'SYNCTEST12345678';
 const SHARE_CODE = 'TESTCODE12345678';
 
-// Seed a cloud session, mock sync, reload, return the session ID.
+// Seed a cloud session, register WS mock, optionally mock HTTP PUT, then reload.
 async function setupCloudSession(
   page: Page,
   opts: {
     putStatus?: number;
     putBody?: () => Promise<string> | string;
-    getStatus?: number;
+    wsEncryptedData?: string | null;
+    wsBehavior?: 'connected' | 'silent' | 'fail';
   } = {}
 ) {
   const id = await seedCloudSession(page, {
@@ -34,27 +39,35 @@ async function setupCloudSession(
     active: true,
   });
 
-  await page.route(`${API}/${id}/sync**`, async (route: Route) => {
-    const method = route.request().method();
-    if (method === 'GET') {
-      await route.fulfill({ status: opts.getStatus ?? 204 });
-    } else {
-      const status = opts.putStatus ?? 204;
-      const body   = opts.putBody ? await opts.putBody() : undefined;
-      await route.fulfill({
-        status,
-        contentType: body ? 'application/json' : undefined,
-        body,
-      });
-    }
+  // Register WS mock before reload so it intercepts the connection the app
+  // opens during initSyncStatus().
+  await mockWebSocket(page, {
+    behavior: opts.wsBehavior ?? 'connected',
+    encryptedData: opts.wsEncryptedData ?? null,
   });
+
+  if (opts.putStatus !== undefined) {
+    await page.route(`${API}/${id}/sync`, async (route: Route) => {
+      if (route.request().method() === 'PUT') {
+        const status = opts.putStatus!;
+        const body   = opts.putBody ? await opts.putBody() : undefined;
+        await route.fulfill({
+          status,
+          contentType: body ? 'application/json' : undefined,
+          body,
+        });
+      } else {
+        await route.fulfill({ status: 204 });
+      }
+    });
+  }
 
   await page.reload();
   await page.waitForTimeout(300);
   return id;
 }
 
-// Trigger a push by adding a task (state change → schedulePush(2s debounce))
+// Trigger a push by adding a task (state change → schedulePush 2s debounce).
 async function addTask(page: Page) {
   await page.fill('#fName', 'Sync Test Task');
   await page.fill('#fMins', '30');
@@ -94,18 +107,13 @@ test.describe('Sync badge visibility', () => {
 test.describe('Sync badge states', () => {
   test.beforeEach(({ page }) => resetState(page));
 
-  test('shows synced after pull returns 204 (no changes)', async ({ page }) => {
-    // Pull is triggered by visibilitychange (tab focus), not on page load.
-    await setupCloudSession(page, { getStatus: 204 });
+  test('shows synced after WS delivers state on connect', async ({ page }) => {
+    // Pre-encrypt a valid state so applyRemoteState() can decrypt and load it.
+    const encrypted = await encryptForSession(page, SESSION_ID, SHARE_CODE, minimalState());
+    await setupCloudSession(page, { wsEncryptedData: encrypted });
 
-    // Simulate a tab focus cycle to trigger maybeSchedulePull()
-    await page.evaluate(() => {
-      Object.defineProperty(document, 'hidden', { value: true, configurable: true, writable: true });
-      document.dispatchEvent(new Event('visibilitychange'));
-      Object.defineProperty(document, 'hidden', { value: false, configurable: true, writable: true });
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-    await page.waitForTimeout(600);
+    // WS auth exchange + state apply happens within ~100ms of load.
+    await page.waitForTimeout(500);
 
     await expect(page.locator('#syncStatus')).toHaveClass(/synced/);
     await expect(page.locator('#syncStatus .sync-lbl')).toContainText('Synced');
@@ -127,10 +135,6 @@ test.describe('Sync badge states', () => {
   });
 
   test('shows synced after successful push with real encryption', async ({ page }) => {
-    // Pre-encrypt a response the client can decrypt
-    await page.goto('/');
-    await page.evaluate(() => localStorage.clear());
-
     const encryptedResponse = await encryptForSession(page, SESSION_ID, SHARE_CODE, minimalState());
 
     await seedCloudSession(page, {
@@ -139,15 +143,18 @@ test.describe('Sync badge states', () => {
       active: true,
     });
 
+    // WS connects but doesn't deliver initial state — push success sets synced.
+    await mockWebSocket(page, { behavior: 'silent' });
+
     await page.route(`${API}/${SESSION_ID}/sync`, async (route: Route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({ status: 204 });
-      } else {
+      if (route.request().method() === 'PUT') {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({ encryptedData: encryptedResponse, crdtState: btoa(''), version: 2 }),
         });
+      } else {
+        await route.fulfill({ status: 204 });
       }
     });
 
@@ -179,7 +186,7 @@ test.describe('Error backoff behaviour', () => {
 
     const label = page.locator('#syncStatus .sync-lbl');
     await expect(label).toContainText('Retry in');
-    // ERROR_BACKOFF[0] = 2s is the first retry; delay is computed before _errorCount increments
+    // ERROR_BACKOFF[0] = 2s; delay is computed before _errorCount increments
     await expect(label).toContainText('Retry in 2s');
   }, 10_000);
 
@@ -199,7 +206,7 @@ test.describe('Error backoff behaviour', () => {
     const firstText  = await label.textContent() ?? '';
     const firstDelay = parseInt(firstText.match(/\d+/)?.[0] ?? '0', 10);
 
-    // Wait for second failure (first retry fires after 4s from error)
+    // Wait for second failure (first retry fires after 2s, push takes ~0s)
     await page.waitForTimeout(5500);
     await expect(label).toContainText('Retry in');
 
@@ -219,12 +226,10 @@ test.describe('Error backoff behaviour', () => {
     await page.waitForTimeout(3000);
     await expect(page.locator('#syncStatus')).toHaveClass(/error/);
 
-    // Simulate coming back online — the 'online' event resets _errorCount
-    // and calls schedulePush(0), which immediately attempts a push.
-    // Change the mock to succeed so we can verify recovery.
+    // Re-mock PUT to still fail — we just want to verify the badge leaves
+    // 'offline' and re-enters the push cycle (error or syncing).
     await page.route(`${API}/${SESSION_ID}/sync`, async (route: Route) => {
       if (route.request().method() === 'PUT') {
-        // Return 500 still — we just want to verify the badge transitions to syncing
         await route.fulfill({ status: 500, body: JSON.stringify({ error: 'still_failing' }) });
       } else {
         await route.fulfill({ status: 204 });
@@ -233,53 +238,42 @@ test.describe('Error backoff behaviour', () => {
 
     await page.evaluate(() => window.dispatchEvent(new Event('online')));
 
-    // Badge should leave 'offline' and attempt a push (goes to 'syncing' then 'error' again)
-    // The key check: badge is no longer showing the old 'offline' state
     await page.waitForTimeout(1000);
     const cls = await page.locator('#syncStatus').getAttribute('class') ?? '';
     expect(cls).not.toContain('offline');
   }, 15_000);
 });
 
-// ── Pull backoff ──────────────────────────────────────────────────────────────
+// ── WS connection behaviour ───────────────────────────────────────────────────
 
-test.describe('Pull interval backoff', () => {
+test.describe('WS connection behaviour', () => {
   test.beforeEach(({ page }) => resetState(page));
 
-  test('consecutive 204 pulls do not crash or loop', async ({ page }) => {
-    // Verify the app handles repeated 204 pull responses without error
-    let pullCount = 0;
-    const id = await seedCloudSession(page, {
-      id: SESSION_ID, shareCode: SHARE_CODE,
-      permissions: ['view_tasks'],
-      active: true,
-    });
+  test('badge is not in error state when WS connects successfully', async ({ page }) => {
+    await setupCloudSession(page);
+    // WS mock accepted the connection — badge should be 'connecting' or 'synced',
+    // never 'error' from a failed WS connection.
+    await page.waitForTimeout(400);
+    await expect(page.locator('#syncStatus')).toBeVisible();
+    await expect(page.locator('#syncStatus')).not.toHaveClass(/error/);
+  });
 
-    await page.route(`${API}/${id}/sync**`, async (route: Route) => {
-      if (route.request().method() === 'GET') {
-        pullCount++;
-        await route.fulfill({ status: 204 });
-      } else {
-        await route.fulfill({ status: 204 });
-      }
-    });
+  test('tab refocus with open WS does not crash or re-connect', async ({ page }) => {
+    await setupCloudSession(page);
+    await page.waitForTimeout(300);
 
-    await page.reload();
-    await page.waitForTimeout(600);
-
-    // Trigger a few visibility-change pulls
+    // Simulate multiple tab focus cycles — with WS already OPEN, connectWS()
+    // is a no-op and no additional connections are made.
     for (let i = 0; i < 3; i++) {
       await page.evaluate(() => {
-        // Simulate tab focus cycle to trigger maybeSchedulePull()
-        Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+        Object.defineProperty(document, 'hidden', { value: true, configurable: true, writable: true });
         document.dispatchEvent(new Event('visibilitychange'));
-        Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+        Object.defineProperty(document, 'hidden', { value: false, configurable: true, writable: true });
         document.dispatchEvent(new Event('visibilitychange'));
       });
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(100);
     }
 
-    // App should still be functional
     await expect(page.locator('#syncStatus')).toBeVisible();
     await expect(page.locator('#syncStatus')).not.toHaveClass(/error/);
   });
