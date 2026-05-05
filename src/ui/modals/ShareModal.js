@@ -104,6 +104,20 @@ async function refreshCodeList() {
       });
       actions.appendChild(copyBtn);
 
+      const linkBtn = document.createElement('button');
+      linkBtn.className = 'share-code-copy';
+      linkBtn.textContent = 'Copy Link';
+      linkBtn.addEventListener('click', () => {
+        const url = new URL(window.location.origin + window.location.pathname);
+        url.searchParams.set('action', 'join');
+        url.searchParams.set('id', session?.id ?? '');
+        url.searchParams.set('code', shareCode);
+        navigator.clipboard.writeText(url.toString()).catch(() => {});
+        linkBtn.textContent = 'Copied!';
+        setTimeout(() => { linkBtn.textContent = 'Copy Link'; }, 1500);
+      });
+      actions.appendChild(linkBtn);
+
       if (!isOwn) {
         const revokeBtn = document.createElement('button');
         revokeBtn.className = 'share-code-revoke';

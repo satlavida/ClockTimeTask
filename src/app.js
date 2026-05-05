@@ -12,7 +12,7 @@ import { updateStats } from './ui/sections/StatsFooter.js';
 import { initSettingsModal, openSettings, closeSettings } from './ui/modals/SettingsModal.js';
 import { initTaskEditModal, openTaskEdit, closeTaskEdit } from './ui/modals/TaskEditModal.js';
 import { initPrivacyModal, openPrivacy, closePrivacy } from './ui/modals/PrivacyModal.js';
-import { initSessionModal, openSessionModal, closeSessionModal } from './ui/modals/SessionModal.js';
+import { initSessionModal, openSessionModal, closeSessionModal, openJoinLink } from './ui/modals/SessionModal.js';
 import { initShareModal, openShareModal, closeShareModal } from './ui/modals/ShareModal.js';
 
 import { initClockSVG, buildFace, redraw, tickHands } from './ui/clock/ClockSVG.js';
@@ -89,7 +89,14 @@ export function init() {
 
   initPrivacyModal();
 
-  initSessionModal({ onSessionChanged: onSessionSwitch });
+  initSessionModal({
+    onSessionChanged: onSessionSwitch,
+    onUIRefresh: () => {
+      if (!S.startTime) { S.startTime = new Date(); S.startTime.setSeconds(0, 0); }
+      syncModeUI(); syncStartInput(); syncBudgetInputs();
+      refresh(); syncSwitcher(); refreshSyncDisplay();
+    },
+  });
 
   initShareModal();
 
@@ -146,4 +153,11 @@ export function init() {
   setInterval(() => { tickHands(); updateBoard(); }, 1000);
   tickHands();
   updateBoard();
+
+  const _params = new URLSearchParams(window.location.search);
+  if (_params.get('action') === 'join') {
+    const _id   = _params.get('id');
+    const _code = _params.get('code');
+    if (_id && _code) setTimeout(() => openJoinLink(_id, _code), 0);
+  }
 }

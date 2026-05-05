@@ -10,7 +10,12 @@
     "deploy": "node build.mjs --deploy && wrangler pages deploy dist --project-name clocktask",
     "test": "playwright test --config=tests/playwright.config.ts",
     "test:ui": "playwright test --config=tests/playwright.config.ts --ui",
+    "test:permissions": "playwright test --config=tests/playwright.config.ts tests/e2e/permissions.spec.ts",
+    "test:join": "playwright test --config=tests/playwright.config.ts tests/e2e/join-flow.spec.ts",
+    "test:sync": "playwright test --config=tests/playwright.config.ts tests/e2e/sync-backoff.spec.ts",
+    "test:session": "playwright test --config=tests/playwright.config.ts tests/e2e/session.spec.ts",
     "screenshots": "playwright test --config=tests/playwright.config.ts tests/e2e/screenshots.spec.ts",
+    "screenshots:permissions": "playwright test --config=tests/playwright.config.ts tests/e2e/permissions.spec.ts --grep screenshot",
     "backend:dev": "npm --prefix backend run dev",
     "backend:deploy": "npm --prefix backend run deploy"
   },

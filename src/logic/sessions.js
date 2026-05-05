@@ -180,7 +180,7 @@ export async function createCloudSession(name, stateJSON, importCurrent) {
   return { sessionId, ownerShareCode };
 }
 
-export async function joinSession(sessionId, shareCode) {
+export async function joinSession(sessionId, shareCode, { persist = true } = {}) {
   const res = await apiFetch(`/sessions/${sessionId}/join`, 'POST', shareCode, {});
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -198,8 +198,8 @@ export async function joinSession(sessionId, shareCode) {
     version,
     permissions,
   };
-  upsertSession(entry);
-  return { stateJSON: plaintext, permissions };
+  if (persist) upsertSession(entry);
+  return { stateJSON: plaintext, permissions, entry };
 }
 
 export async function pushSync(stateJSON) {

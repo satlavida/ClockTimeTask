@@ -14,6 +14,7 @@ let _state           = 'idle'; // 'idle' | 'syncing' | 'error' | 'offline'
 // Push side
 let _errorCount      = 0;   // consecutive failures; drives ERROR_BACKOFF index
 let _lastPushedJSON  = null; // JSON of last successfully pushed state; skip push if unchanged
+let _nextRetryMs     = 0;   // delay of the currently-scheduled retry (for the error label)
 
 // Pull side
 let _pullIdleCount   = 0;   // consecutive 204s; drives PULL_BACKOFF index
@@ -81,9 +82,10 @@ async function doPush() {
     _lastPushedJSON = result.stateJSON ?? currentJSON;
     setStatus('synced');
   } catch (_) {
+    _nextRetryMs = errorDelay(); // compute before incrementing so index 0 (2s) is reachable
     _errorCount++;
     setStatus(navigator.onLine ? 'error' : 'offline');
-    if (navigator.onLine) schedulePush(errorDelay());
+    if (navigator.onLine) schedulePush(_nextRetryMs);
   }
 }
 
@@ -148,7 +150,7 @@ function render() {
     label.textContent = 'Offline';
   } else if (_state === 'error') {
     dot.className     = 'sync-dot error';
-    label.textContent = `Retry in ${errorDelay() / 1000}s`;
+    label.textContent = `Retry in ${_nextRetryMs / 1000}s`;
   } else {
     dot.className     = 'sync-dot';
     label.textContent = '';

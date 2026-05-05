@@ -449,6 +449,25 @@
         </div>
       </div>
 
+      <!-- Link Join: auto-triggered by URL params -->
+      <div id="sessionView-link-join" class="hidden">
+        <p style="font-size:13px;margin-bottom:16px;color:var(--text)">
+          You've been invited to join a shared session.
+        </p>
+        <label class="import-row">
+          <input type="checkbox" id="linkJoinSaveToggle" checked />
+          Save to my sessions
+        </label>
+        <p style="font-size:11px;color:var(--dim);margin-top:6px;margin-bottom:16px">
+          Unchecked: session loads for this visit only and disappears on refresh.
+        </p>
+        <div class="session-error" id="sessionLinkJoinError" hidden></div>
+        <div style="display:flex;gap:8px;margin-top:16px">
+          <button class="btn-cancel" id="btnLinkJoinCancel" style="flex:1">Cancel</button>
+          <button class="btn-save" id="btnDoLinkJoin" style="flex:2">Join Session</button>
+        </div>
+      </div>
+
       <!-- Success -->
       <div id="sessionView-success" class="hidden">
         <p style="font-size:13px;margin-bottom:16px;color:var(--text)">

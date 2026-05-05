@@ -332,6 +332,12 @@ test.describe('Session switcher', () => {
       localStorage.setItem('clocktask_sessions_v1', JSON.stringify(sessions));
       localStorage.setItem('clocktask_active_session_v1', 'CLOUDSESSION123');
     });
+
+    // Mock DELETE so the removal is not blocked by a real backend call
+    await page.route(`${API}/CLOUDSESSION123`, async (route: Route) => {
+      await route.fulfill({ status: 204 });
+    });
+
     await page.reload();
     await page.waitForTimeout(200);
 

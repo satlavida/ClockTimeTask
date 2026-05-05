@@ -2,9 +2,13 @@ import { createCloudSession, joinSession, setActiveSession, getSessions } from '
 import { toJSON, loadFromJSON, save } from '../../logic/state.js';
 
 let _onSessionChanged = null;
+let _onUIRefresh      = null;
+let _pendingLinkId    = null;
+let _pendingLinkCode  = null;
 
-export function initSessionModal({ onSessionChanged }) {
+export function initSessionModal({ onSessionChanged, onUIRefresh }) {
   _onSessionChanged = onSessionChanged;
+  _onUIRefresh      = onUIRefresh;
 
   document.getElementById('sessionOverlay').addEventListener('click', e => {
     if (e.target === document.getElementById('sessionOverlay')) closeSessionModal();
@@ -24,6 +28,13 @@ export function initSessionModal({ onSessionChanged }) {
   // Join form
   document.getElementById('btnDoJoin').addEventListener('click', handleJoin);
 
+  // Link-join view
+  document.getElementById('btnDoLinkJoin').addEventListener('click', handleLinkJoin);
+  document.getElementById('btnLinkJoinCancel').addEventListener('click', () => {
+    clearLinkParams();
+    closeSessionModal();
+  });
+
   // Success view — copy buttons
   document.getElementById('btnCopySessionId').addEventListener('click',   () => copyText('createResultId'));
   document.getElementById('btnCopyShareCode').addEventListener('click',   () => copyText('createResultCode'));
@@ -32,17 +43,23 @@ export function initSessionModal({ onSessionChanged }) {
 }
 
 function showView(view) {
-  ['home', 'create', 'join', 'success'].forEach(v => {
+  ['home', 'create', 'join', 'link-join', 'success'].forEach(v => {
     document.getElementById(`sessionView-${v}`).classList.toggle('hidden', v !== view);
   });
   clearErrors();
 }
 
 function clearErrors() {
-  ['sessionCreateError', 'sessionJoinError'].forEach(id => {
+  ['sessionCreateError', 'sessionJoinError', 'sessionLinkJoinError'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.textContent = ''; el.hidden = true; }
   });
+}
+
+function clearLinkParams() {
+  _pendingLinkId   = null;
+  _pendingLinkCode = null;
+  history.replaceState(null, '', window.location.pathname);
 }
 
 function showError(id, msg) {
@@ -112,6 +129,39 @@ async function handleJoin() {
   }
 }
 
+async function handleLinkJoin() {
+  const persist = document.getElementById('linkJoinSaveToggle').checked;
+  const btn     = document.getElementById('btnDoLinkJoin');
+  btn.disabled   = true;
+  btn.textContent = 'Joining…';
+  clearErrors();
+
+  try {
+    const { stateJSON } = await joinSession(_pendingLinkId, _pendingLinkCode, { persist });
+    if (persist) {
+      setActiveSession(_pendingLinkId);
+      loadFromJSON(stateJSON);
+      save();
+      clearLinkParams();
+      _onSessionChanged?.();
+    } else {
+      loadFromJSON(stateJSON);
+      clearLinkParams();
+      _onUIRefresh?.();
+    }
+    closeSessionModal();
+  } catch (err) {
+    const errors = {
+      invalid_share_code: 'Invalid share code.',
+      session_not_found:  'Session not found.',
+    };
+    showError('sessionLinkJoinError', errors[err.message] ?? 'Join failed. Check your link and try again.');
+  } finally {
+    btn.disabled   = false;
+    btn.textContent = 'Join Session';
+  }
+}
+
 function copyText(inputId) {
   const input = document.getElementById(inputId);
   if (!input) return;
@@ -125,6 +175,13 @@ function copyText(inputId) {
 
 export function openSessionModal() {
   showView('home');
+  document.getElementById('sessionOverlay').classList.add('open');
+}
+
+export function openJoinLink(sessionId, shareCode) {
+  _pendingLinkId   = sessionId;
+  _pendingLinkCode = shareCode;
+  showView('link-join');
   document.getElementById('sessionOverlay').classList.add('open');
 }
 
