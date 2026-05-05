@@ -44,9 +44,10 @@ function upsertSession(entry) {
   saveRegistry(list);
 }
 
-function removeSession(id) {
+export function removeSession(id) {
   const list = getSessions().filter(s => s.id !== id);
   saveRegistry(list);
+  if (getActiveSessionId() === id) setActiveSession('local');
 }
 
 // ── Active session ────────────────────────────────────────────────────────────
@@ -214,10 +215,12 @@ export async function pushSync(stateJSON) {
   });
 
   if (res.status === 409) {
-    // Pull first, then the caller should retry
-    return { conflict: true };
+    const body = await res.json().catch(() => ({}));
+    return { conflict: true, serverVersion: body.serverVersion };
   }
-  if (!res.ok) throw new Error('sync_push_failed');
+  if (res.status === 404) throw Object.assign(new Error('session_not_found'), { status: 404 });
+  if (res.status === 401 || res.status === 403) throw Object.assign(new Error('forbidden'), { status: res.status });
+  if (!res.ok) throw Object.assign(new Error('sync_push_failed'), { status: res.status });
 
   const { version, encryptedData: serverEncrypted } = await res.json();
   upsertSession({ ...session, version, lastSynced: new Date().toISOString() });
@@ -233,8 +236,9 @@ export async function pullSync() {
 
   const res = await apiFetch(`/sessions/${session.id}/sync?sinceVersion=${session.version}`, 'GET', session.shareCode);
   if (res.status === 204) return null; // no changes
-
-  if (!res.ok) throw new Error('sync_pull_failed');
+  if (res.status === 404) throw Object.assign(new Error('session_not_found'), { status: 404 });
+  if (res.status === 401 || res.status === 403) throw Object.assign(new Error('forbidden'), { status: res.status });
+  if (!res.ok) throw Object.assign(new Error('sync_pull_failed'), { status: res.status });
   const { encryptedData, version } = await res.json();
   const stateJSON = await decryptState(session.id, session.shareCode, encryptedData);
   upsertSession({ ...session, version, lastSynced: new Date().toISOString() });
@@ -245,8 +249,7 @@ export async function deleteCloudSession(sessionId) {
   const session = getSessions().find(s => s.id === sessionId);
   if (!session) return;
   await apiFetch(`/sessions/${sessionId}`, 'DELETE', session.shareCode);
-  removeSession(sessionId);
-  if (getActiveSessionId() === sessionId) setActiveSession('local');
+  removeSession(sessionId); // also resets active session if needed
 }
 
 // ── Share code management ─────────────────────────────────────────────────────

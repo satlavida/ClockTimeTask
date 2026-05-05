@@ -1,5 +1,6 @@
-import { pushSync, pullSync, isCloudSession, getActiveSession } from '../../logic/sessions.js';
+import { pushSync, pullSync, isCloudSession, getActiveSession, removeSession, setActiveSession } from '../../logic/sessions.js';
 import { toJSON, loadFromJSON, save } from '../../logic/state.js';
+import { showToast } from '../Toast.js';
 
 // Error backoff ladder (ms): 2s → 4s → 8s → 16s → 30s
 const ERROR_BACKOFF = [2_000, 4_000, 8_000, 16_000, 30_000];
@@ -19,6 +20,9 @@ let _nextRetryMs     = 0;   // delay of the currently-scheduled retry (for the e
 // Pull side
 let _pullIdleCount   = 0;   // consecutive 204s; drives PULL_BACKOFF index
 let _lastPullTime    = 0;   // ms timestamp of last pull attempt
+
+// Prevents duplicate "session not found" toasts while the user decides
+let _sessionNotFoundToastShown = false;
 
 export function initSyncStatus({ onStateUpdated }) {
   _onStateUpdated = onStateUpdated;
@@ -42,6 +46,15 @@ export function schedulePush(delayMs = 2_000) {
   _pushTimer = setTimeout(doPush, delayMs);
 }
 
+// Force an immediate push + pull, bypassing debounce and pull throttle
+export function forceSync() {
+  if (!isCloudSession()) return;
+  clearTimeout(_pushTimer);
+  _lastPullTime = 0; // bypass pull throttle
+  _lastPushedJSON = null; // bypass no-op skip
+  doPush().then(() => doPull());
+}
+
 function errorDelay() {
   return ERROR_BACKOFF[Math.min(_errorCount, ERROR_BACKOFF.length - 1)];
 }
@@ -53,7 +66,6 @@ function pullInterval() {
 async function doPush() {
   if (!isCloudSession()) return;
 
-  // Skip if state hasn't changed since the last successful push
   const currentJSON = toJSON();
   if (currentJSON === _lastPushedJSON) {
     setStatus('synced');
@@ -66,7 +78,8 @@ async function doPush() {
     if (!result) { setStatus('idle'); return; }
 
     if (result.conflict) {
-      // Server is ahead — pull first, then re-push after a short pause
+      // Version conflict — server is ahead; pull first, then re-push
+      showToast('Remote has newer changes — pulling first…', { type: 'warn', duration: 4_000 });
       await doPull();
       schedulePush(1_000);
       return;
@@ -80,12 +93,10 @@ async function doPush() {
 
     _errorCount     = 0;
     _lastPushedJSON = result.stateJSON ?? currentJSON;
+    _sessionNotFoundToastShown = false;
     setStatus('synced');
-  } catch (_) {
-    _nextRetryMs = errorDelay(); // compute before incrementing so index 0 (2s) is reachable
-    _errorCount++;
-    setStatus(navigator.onLine ? 'error' : 'offline');
-    if (navigator.onLine) schedulePush(_nextRetryMs);
+  } catch (err) {
+    handleSyncError(err);
   }
 }
 
@@ -102,23 +113,69 @@ async function doPull() {
     const result = await pullSync();
 
     if (!result) {
-      // 204 — no server changes; back off the next pull
       _pullIdleCount++;
       setStatus('synced');
       return;
     }
 
-    // Got new state — reset idle counter
     _pullIdleCount  = 0;
-    _lastPushedJSON = result.stateJSON; // server is now the source of truth
+    _lastPushedJSON = result.stateJSON;
     loadFromJSON(result.stateJSON);
     save();
     _onStateUpdated?.();
+    _sessionNotFoundToastShown = false;
     setStatus('synced');
-  } catch (_) {
-    _errorCount++;
-    setStatus(navigator.onLine ? 'error' : 'offline');
+  } catch (err) {
+    handleSyncError(err);
   }
+}
+
+function handleSyncError(err) {
+  const code = err.message;
+
+  if (code === 'session_not_found') {
+    setStatus('error');
+    _nextRetryMs = 0; // don't auto-retry a dead session
+
+    if (!_sessionNotFoundToastShown) {
+      _sessionNotFoundToastShown = true;
+      const session = getActiveSession();
+      showToast(
+        `Session "${session?.name ?? 'Unknown'}" no longer exists on the server.`,
+        {
+          type: 'error',
+          duration: 15_000,
+          action: {
+            label: 'Remove',
+            onClick: () => {
+              const id = session?.id;
+              if (id && id !== 'local') {
+                removeSession(id);
+                setActiveSession('local');
+                _onStateUpdated?.();
+                _sessionNotFoundToastShown = false;
+                setStatus('idle');
+              }
+            },
+          },
+        }
+      );
+    }
+    return;
+  }
+
+  if (code === 'forbidden') {
+    setStatus('error');
+    _nextRetryMs = 0;
+    showToast('Sync failed: share code is no longer valid.', { type: 'error', duration: 8_000 });
+    return;
+  }
+
+  // Generic network/server error — backoff and retry
+  _nextRetryMs = errorDelay();
+  _errorCount++;
+  setStatus(navigator.onLine ? 'error' : 'offline');
+  if (navigator.onLine) schedulePush(_nextRetryMs);
 }
 
 function setStatus(status) {
@@ -133,27 +190,33 @@ function render() {
   if (!isCloudSession()) { el.hidden = true; return; }
   el.hidden = false;
 
-  const dot   = el.querySelector('.sync-dot');
-  const label = el.querySelector('.sync-lbl');
+  const dot      = el.querySelector('.sync-dot');
+  const label    = el.querySelector('.sync-lbl');
+  const forceBtn = el.querySelector('.sync-force-btn');
   el.className = `sync-status ${_state}`;
 
   if (_state === 'syncing') {
     dot.className     = 'sync-dot spinning';
     label.textContent = 'Syncing…';
+    if (forceBtn) forceBtn.classList.add('spinning');
   } else if (_state === 'synced') {
     const session = getActiveSession();
     const t = session?.lastSynced ? relTime(session.lastSynced) : 'just now';
     dot.className     = 'sync-dot ok';
     label.textContent = `Synced ${t}`;
+    if (forceBtn) forceBtn.classList.remove('spinning');
   } else if (_state === 'offline') {
     dot.className     = 'sync-dot offline';
     label.textContent = 'Offline';
+    if (forceBtn) forceBtn.classList.remove('spinning');
   } else if (_state === 'error') {
     dot.className     = 'sync-dot error';
-    label.textContent = `Retry in ${_nextRetryMs / 1000}s`;
+    label.textContent = _nextRetryMs > 0 ? `Retry in ${_nextRetryMs / 1000}s` : 'Sync error';
+    if (forceBtn) forceBtn.classList.remove('spinning');
   } else {
     dot.className     = 'sync-dot';
     label.textContent = '';
+    if (forceBtn) forceBtn.classList.remove('spinning');
   }
 }
 

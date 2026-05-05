@@ -1,0 +1,92 @@
+.toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 240px;
+  max-width: 340px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  pointer-events: all;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  box-shadow: 0 4px 16px rgba(0,0,0,.5);
+  opacity: 0;
+  transform: translateX(12px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.toast.toast-in  { opacity: 1; transform: translateX(0); }
+.toast.toast-out { opacity: 0; transform: translateX(12px); }
+
+/* Left accent stripe via border-left */
+.toast-info  { border-left: 3px solid var(--accent); }
+.toast-warn  { border-left: 3px solid #e09a30; }
+.toast-error { border-left: 3px solid var(--red); }
+
+.toast-msg { flex: 1; }
+
+.toast-action {
+  padding: 4px 8px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color .12s, background .12s;
+}
+
+.toast-action:hover { border-color: var(--accent); background: rgba(245,183,49,.08); }
+
+.toast-close {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  flex-shrink: 0;
+  transition: color .12s;
+}
+
+.toast-close:hover { color: var(--text); }
+
+/* Force-sync button next to sync dot */
+.sync-force-btn {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 2px;
+  opacity: 0;
+  transition: color .15s, opacity .15s;
+  flex-shrink: 0;
+}
+
+.sync-status:hover .sync-force-btn { opacity: 1; }
+.sync-force-btn:hover { color: var(--accent); }
+.sync-force-btn.spinning { color: var(--accent); opacity: 1; animation: sync-spin 1s linear infinite; }

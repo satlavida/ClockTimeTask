@@ -22,7 +22,7 @@ import { initStickyNotes, renderNotes, addNoteAndRender, alignNotes, setNoteFilt
 import { downloadMarkdown } from './logic/export.js';
 
 import { initSessionSwitcher, syncSwitcher } from './ui/components/SessionSwitcher.js';
-import { initSyncStatus, schedulePush, refreshSyncDisplay } from './ui/components/SyncStatus.js';
+import { initSyncStatus, schedulePush, forceSync, refreshSyncDisplay } from './ui/components/SyncStatus.js';
 
 export function init() {
   load();
@@ -108,6 +108,8 @@ export function init() {
   });
 
   initSyncStatus({ onStateUpdated: onSessionSwitch });
+
+  document.getElementById('btnForceSync')?.addEventListener('click', forceSync);
 
   initClockSVG({ onDragEnd: refresh });
 
