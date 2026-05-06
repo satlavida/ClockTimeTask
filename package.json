@@ -17,7 +17,8 @@
     "screenshots": "playwright test --config=tests/playwright.config.ts tests/e2e/screenshots.spec.ts",
     "screenshots:permissions": "playwright test --config=tests/playwright.config.ts tests/e2e/permissions.spec.ts --grep screenshot",
     "backend:dev": "npm --prefix backend run dev",
-    "backend:deploy": "npm --prefix backend run deploy"
+    "backend:deploy": "npm --prefix backend run deploy",
+    "deploy:all": "npm run deploy & npm run backend:deploy & wait"
   },
   "devDependencies": {
     "@playwright/test": "^1.44.0",
