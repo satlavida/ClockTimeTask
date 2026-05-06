@@ -1,6 +1,9 @@
 import './styles/main.css';
 import { init } from './app.js';
 
+const buildLabel = __BUILD_DATE__ === 'dev' ? 'dev' : new Date(Number(__BUILD_DATE__)).toISOString();
+console.log(`[ClockTask] build ${buildLabel}`);
+
 init();
 
 if ('serviceWorker' in navigator && location.hostname !== 'localhost') {

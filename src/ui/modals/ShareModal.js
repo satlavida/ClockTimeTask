@@ -161,16 +161,27 @@ function copyText(inputId) {
   });
 }
 
-export async function openShareModal() {
+export async function openShareModal({ justCreated = false } = {}) {
   document.getElementById('newShareCodeRow').hidden  = true;
   document.getElementById('newShareCodeValue').value = '';
   applyPreset(PRESETS.collaborator.permissions);
   const err = document.getElementById('shareError');
   if (err) err.hidden = true;
+  const banner = document.getElementById('shareCreatedBanner');
+  if (banner) banner.hidden = !justCreated;
+
+  const session = getActiveSession();
+  const titleEl = document.querySelector('#shareOverlay .modal-title');
+  if (titleEl) {
+    titleEl.textContent = session?.name ? `Share — ${session.name}` : 'Share Session';
+  }
+
   document.getElementById('shareOverlay').classList.add('open');
   await refreshCodeList();
 }
 
 export function closeShareModal() {
   document.getElementById('shareOverlay').classList.remove('open');
+  const banner = document.getElementById('shareCreatedBanner');
+  if (banner) banner.hidden = true;
 }

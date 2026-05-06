@@ -35,6 +35,8 @@ export function openSettings() {
   document.getElementById('setClock24h').checked    = S.settings.clock24h    ?? false;
   document.getElementById('setFitClock').checked    = S.settings.fitClock    ?? false;
   document.getElementById('setSoundAlerts').checked = S.settings.soundAlerts ?? false;
+  const label = __BUILD_DATE__ === 'dev' ? 'dev' : new Date(Number(__BUILD_DATE__)).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  document.getElementById('buildVersion').textContent = `build ${label}`;
   document.getElementById('settingsOverlay').classList.add('open');
 }
 

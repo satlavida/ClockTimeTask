@@ -2,6 +2,7 @@ import { S, save } from '../../logic/state.js';
 import { delTask, clearAllTasks, setColor, reorderTask } from '../../logic/tasks.js';
 import { createTaskItem } from '../components/TaskItem.js';
 import { toggleSection } from '../../logic/sections.js';
+import { getActivePermissions } from '../../logic/sessions.js';
 
 let dragIdx = null;
 
@@ -20,6 +21,7 @@ export function initTaskList({ onChanged }) {
 export function renderList(onChanged) {
   const list = document.getElementById('taskList');
   list.innerHTML = '';
+  const permissions = getActivePermissions();
 
   S.tasks.forEach((task, i) => {
     const wrap = createTaskItem(task, {
@@ -28,6 +30,7 @@ export function renderList(onChanged) {
       onColorChange: (id, color) => { setColor(id, color); onChanged(); },
       onNameClick:   (itemEl, id) => startNameEdit(itemEl, id, onChanged),
       onChanged,
+      permissions,
       onDragStart:   el => {
         dragIdx = i;
         setTimeout(() => el.classList.add('dragging'), 0);

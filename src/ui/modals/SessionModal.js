@@ -1,5 +1,7 @@
 import { createCloudSession, joinSession, setActiveSession, getSessions } from '../../logic/sessions.js';
 import { toJSON, loadFromJSON, save } from '../../logic/state.js';
+import { openShareModal } from './ShareModal.js';
+import { renderSessionList } from '../components/SessionList.js';
 
 let _onSessionChanged = null;
 let _onUIRefresh      = null;
@@ -34,19 +36,29 @@ export function initSessionModal({ onSessionChanged, onUIRefresh }) {
     clearLinkParams();
     closeSessionModal();
   });
-
-  // Success view — copy buttons
-  document.getElementById('btnCopySessionId').addEventListener('click',   () => copyText('createResultId'));
-  document.getElementById('btnCopyShareCode').addEventListener('click',   () => copyText('createResultCode'));
-
-  document.getElementById('btnSessionDone').addEventListener('click', closeSessionModal);
 }
 
 function showView(view) {
-  ['home', 'create', 'join', 'link-join', 'success'].forEach(v => {
+  ['home', 'create', 'join', 'link-join'].forEach(v => {
     document.getElementById(`sessionView-${v}`).classList.toggle('hidden', v !== view);
   });
+  if (view === 'home') refreshHomeList();
   clearErrors();
+}
+
+function refreshHomeList() {
+  const container = document.getElementById('sessionModalList');
+  if (!container) return;
+  const sessions = getSessions();
+  renderSessionList(container, sessions, {
+    onSwitch: () => { closeSessionModal(); _onSessionChanged?.(); },
+    onShare:  (session) => {
+      setActiveSession(session.id);
+      closeSessionModal();
+      openShareModal();
+    },
+    onDelete: () => { refreshHomeList(); _onSessionChanged?.(); },
+  });
 }
 
 function clearErrors() {
@@ -80,11 +92,11 @@ async function handleCreate() {
 
   try {
     const stateJSON = toJSON();
-    const { sessionId, ownerShareCode } = await createCloudSession(name, stateJSON, importState);
-
-    document.getElementById('createResultId').value   = sessionId;
-    document.getElementById('createResultCode').value = ownerShareCode;
-    showView('success');
+    const { sessionId } = await createCloudSession(name, stateJSON, importState);
+    setActiveSession(sessionId);
+    closeSessionModal();
+    _onSessionChanged?.();
+    openShareModal({ justCreated: true });
   } catch (err) {
     const msg = err.status === 429
       ? 'Server is at capacity. Try again later.'
@@ -160,17 +172,6 @@ async function handleLinkJoin() {
     btn.disabled   = false;
     btn.textContent = 'Join Session';
   }
-}
-
-function copyText(inputId) {
-  const input = document.getElementById(inputId);
-  if (!input) return;
-  navigator.clipboard.writeText(input.value).catch(() => {
-    input.select();
-    document.execCommand('copy');
-  });
-  const btn = input.nextElementSibling;
-  if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy'; }, 1500); }
 }
 
 export function openSessionModal() {
