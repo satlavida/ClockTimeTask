@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import type { Env, Permission } from '../types.js';
 import { getMeta, putMeta } from '../lib/kv.js';
-import { emptyState } from '../lib/crdt.js';
 import { randomAlphanumeric } from '../lib/auth.js';
 
 const SESSION_LIMIT = 50;
@@ -14,7 +13,7 @@ const sessions = new Hono<{ Bindings: Env }>();
 
 // POST /sessions — create a new session
 sessions.post('/', async (c) => {
-  const body = await c.req.json<{ encryptedData: string; crdtState?: string }>();
+  const body = await c.req.json<{ encryptedData: string; name?: string }>();
   if (!body.encryptedData) return c.json({ error: 'missing_encrypted_data' }, 400);
 
   const kv = c.env.SESSIONS;
@@ -30,11 +29,11 @@ sessions.post('/', async (c) => {
 
   const session = {
     id: sessionId,
+    name: (body.name ?? '').trim() || 'My Session',
     version: 1,
     createdAt: now,
     lastAccess: now,
     encryptedData: body.encryptedData,
-    crdtState: body.crdtState ?? emptyState(),
     shareCodes: {
       [ownerShareCode]: { permissions: ALL_PERMISSIONS, createdAt: now },
     },

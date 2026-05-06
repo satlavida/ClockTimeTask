@@ -1,6 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { Env, SessionRecord, Permission } from './types.js';
-import { mergeUpdate } from './lib/crdt.js';
 import { validateShareCode, getPermissions, extractShareCode, randomAlphanumeric } from './lib/auth.js';
 import { getMeta, putMeta } from './lib/kv.js';
 
@@ -71,7 +70,6 @@ export class SessionDO extends DurableObject<Env> {
       ws.send(JSON.stringify({
         type: 'connected',
         encryptedData: session.encryptedData,
-        crdtState: session.crdtState,
         version: session.version,
       }));
     }
@@ -108,11 +106,11 @@ export class SessionDO extends DurableObject<Env> {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  private broadcast(data: object): void {
+  private broadcast(data: object, skipCode?: string): void {
     const msg = JSON.stringify(data);
     for (const ws of this.ctx.getWebSockets()) {
       const att = (ws.deserializeAttachment() ?? { authenticated: false }) as WsAttachment;
-      if (att.authenticated) {
+      if (att.authenticated && att.shareCode !== skipCode) {
         try { ws.send(msg); } catch (_) { /* ignore closed ws */ }
       }
     }
@@ -150,63 +148,57 @@ export class SessionDO extends DurableObject<Env> {
 
     return Response.json({
       encryptedData: session.encryptedData,
-      crdtState: session.crdtState,
       permissions,
       version: session.version,
+      name: session.name ?? '',
     });
   }
 
   private async handleSyncPut(request: Request): Promise<Response> {
     const shareCode = extractShareCode(request.headers.get('Authorization') ?? undefined);
-    if (!shareCode) return Response.json({ error: 'missing_share_code' }, { status: 401 });
+    if (!shareCode) {
+      await request.body?.cancel();
+      return Response.json({ error: 'missing_share_code' }, { status: 401 });
+    }
 
     const session = await this.load();
-    if (!session) return Response.json({ error: 'session_not_found' }, { status: 404 });
+    if (!session) {
+      await request.body?.cancel();
+      return Response.json({ error: 'session_not_found' }, { status: 404 });
+    }
 
     const canEdit =
       validateShareCode(session, shareCode, 'edit_tasks') ||
       validateShareCode(session, shareCode, 'edit_notes') ||
       validateShareCode(session, shareCode, 'edit_budget');
-    if (!canEdit) return Response.json({ error: 'forbidden' }, { status: 403 });
+    if (!canEdit) {
+      await request.body?.cancel();
+      return Response.json({ error: 'forbidden' }, { status: 403 });
+    }
 
-    const body = (await request.json()) as {
-      encryptedData: string;
-      crdtUpdate: string;
-      clientVersion: number;
-    };
+    const body = (await request.json()) as { encryptedData: string };
 
-    if (!body.encryptedData || !body.crdtUpdate || body.clientVersion === undefined) {
+    if (!body.encryptedData) {
       return Response.json({ error: 'missing_fields' }, { status: 400 });
     }
 
-    // DO serializes requests so no concurrent writes — strict version check
-    if (body.clientVersion !== session.version) {
-      return Response.json({ error: 'version_conflict', serverVersion: session.version }, { status: 409 });
-    }
-
-    const newCrdtState = mergeUpdate(session.crdtState, body.crdtUpdate);
+    // DO serialises requests so writes are never concurrent — last writer wins
     const updated: SessionRecord = {
       ...session,
       version: session.version + 1,
       lastAccess: new Date().toISOString(),
       encryptedData: body.encryptedData,
-      crdtState: newCrdtState,
     };
 
     await this.store(updated);
 
-    this.broadcast({
-      type: 'sync',
-      encryptedData: updated.encryptedData,
-      crdtState: updated.crdtState,
-      version: updated.version,
-    });
+    // Broadcast to all other connected clients; skip the pusher's own connection
+    this.broadcast(
+      { type: 'sync', encryptedData: updated.encryptedData, version: updated.version },
+      shareCode,
+    );
 
-    return Response.json({
-      encryptedData: updated.encryptedData,
-      crdtState: updated.crdtState,
-      version: updated.version,
-    });
+    return Response.json({ encryptedData: updated.encryptedData, version: updated.version });
   }
 
   private async handleListShareCodes(request: Request): Promise<Response> {

@@ -14,11 +14,11 @@ export type ShareCodeEntry = {
 
 export type SessionRecord = {
   id: string;
+  name: string;
   version: number;
   createdAt: string;
   lastAccess: string;
   encryptedData: string;
-  crdtState: string;
   shareCodes: Record<string, ShareCodeEntry>;
 };
 

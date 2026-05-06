@@ -1,5 +1,3 @@
-import * as Y from 'yjs';
-
 const SESSIONS_KEY = 'clocktask_sessions_v1';
 const ACTIVE_KEY   = 'clocktask_active_session_v1';
 
@@ -72,14 +70,6 @@ export function isCloudSession() {
   return getActiveSession()?.type === 'cloud';
 }
 
-// ── CRDT helpers ──────────────────────────────────────────────────────────────
-
-function emptyYjsState() {
-  const doc = new Y.Doc();
-  const state = Y.encodeStateAsUpdate(doc);
-  return btoa(String.fromCharCode(...state));
-}
-
 // ── WS helpers ────────────────────────────────────────────────────────────────
 
 export function getWSUrl(sessionId) {
@@ -109,8 +99,8 @@ export async function createCloudSession(name, stateJSON, importCurrent) {
     : JSON.stringify({ tasks: [], notes: [], mode: 'free', budget: { inputMode: 'duration', hours: 2, mins: 0, endTimeStr: null, count: 3 }, startTime: new Date().toISOString() });
 
   const res = await apiFetch('/sessions', 'POST', null, {
+    name: name || 'My Session',
     encryptedData: plaintext,
-    crdtState: emptyYjsState(),
   });
   if (!res.ok) {
     const body = await res.json();
@@ -137,11 +127,11 @@ export async function joinSession(sessionId, shareCode, { persist = true } = {})
     const body = await res.json().catch(() => ({}));
     throw Object.assign(new Error(body.error ?? 'join_failed'), { status: res.status });
   }
-  const { encryptedData, permissions, version } = await res.json();
+  const { encryptedData, permissions, version, name } = await res.json();
 
   const entry = {
     id: sessionId,
-    name: `Session ${sessionId.slice(0, 6)}`,
+    name: name || `Session ${sessionId.slice(0, 6)}`,
     type: 'cloud',
     shareCode,
     lastSynced: new Date().toISOString(),
@@ -158,14 +148,8 @@ export async function pushSync(stateJSON) {
 
   const res = await apiFetch(`/sessions/${session.id}/sync`, 'PUT', session.shareCode, {
     encryptedData: stateJSON,
-    crdtUpdate: emptyYjsState(),
-    clientVersion: session.version,
   });
 
-  if (res.status === 409) {
-    const body = await res.json().catch(() => ({}));
-    return { conflict: true, serverVersion: body.serverVersion };
-  }
   if (res.status === 404) throw Object.assign(new Error('session_not_found'), { status: 404 });
   if (res.status === 401 || res.status === 403) throw Object.assign(new Error('forbidden'), { status: res.status });
   if (!res.ok) throw Object.assign(new Error('sync_push_failed'), { status: res.status });

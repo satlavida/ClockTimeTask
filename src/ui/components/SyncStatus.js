@@ -116,6 +116,10 @@ function connectWS() {
 
     if (data.type === 'connected' || data.type === 'sync') {
       _reconnectCount = 0;
+      // For 'sync' broadcasts from other clients: don't overwrite local state
+      // when we have a pending push — our changes should win (last-writer-wins).
+      // 'connected' is the initial state load and always applies.
+      if (data.type === 'sync' && _pushTimer !== null) return;
       applyRemoteState(data);
     } else if (data.type === 'session_deleted') {
       handleSessionDeleted();
@@ -240,12 +244,6 @@ async function doPush() {
   try {
     const result = await pushSync(currentJSON);
     if (!result) { setStatus('idle'); return; }
-
-    if (result.conflict) {
-      // Server is ahead — WS should deliver the update shortly; retry push
-      schedulePush(1_000);
-      return;
-    }
 
     if (result.stateJSON) {
       loadFromJSON(result.stateJSON);
