@@ -29,5 +29,6 @@ export type MetaRecord = {
 
 export type Env = {
   SESSIONS: KVNamespace;
+  SESSION_DO: DurableObjectNamespace;
   ENVIRONMENT: string;
 };
