@@ -26,7 +26,7 @@ test.describe('Session modal navigation', () => {
     await expect(page.locator('#sessionView-home')).toBeVisible();
     await expect(page.locator('#sessionView-create')).toBeHidden();
     await expect(page.locator('#sessionView-join')).toBeHidden();
-    await expect(page.locator('#sessionView-success')).toBeHidden();
+    // #sessionView-success was removed in f0cdc51 — create now opens ShareModal directly
   });
 
   test('navigates to create view and back', async ({ page }) => {
@@ -61,35 +61,41 @@ test.describe('Session modal navigation', () => {
 test.describe('Session create', () => {
   test.beforeEach(({ page }) => resetState(page));
 
-  test('shows success view with session ID and share code after create', async ({ page }) => {
-    // Step 1: POST /sessions — returns real sessionId + ownerShareCode
+  test('successful create closes session modal and opens ShareModal with banner', async ({ page }) => {
+    // POST /sessions
     await page.route(`${API}`, async (route: Route) => {
-      await route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          sessionId: 'TESTSESSIONID12',
-          ownerShareCode: 'OWNERCODE1234567',
-        }),
-      });
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify({ sessionId: 'TESTSESSIONID12', ownerShareCode: 'OWNERCODE1234567' }),
+        });
+      } else {
+        await route.continue();
+      }
     });
-    // Step 2: PUT /sessions/:id/sync — code re-encrypts and pushes after create
-    await page.route(`${API}/TESTSESSIONID12/sync`, async (route: Route) => {
+    // GET /share-codes — called by openShareModal() → refreshCodeList()
+    await page.route(`${API}/TESTSESSIONID12/share-codes`, async (route: Route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ version: 1 }),
+        body: JSON.stringify({ shareCodes: [] }),
       });
     });
+    // WS connect after session becomes active
+    const { mockWebSocket } = await import('./helpers');
+    await mockWebSocket(page, { behavior: 'silent' });
 
     await openSessionModal(page);
     await page.click('#btnGoCreate');
     await page.fill('#sessionNameInput', 'Test Session');
     await page.click('#btnCreateSession');
+    await page.waitForTimeout(600);
 
-    await expect(page.locator('#sessionView-success')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('#createResultId')).toHaveValue('TESTSESSIONID12');
-    await expect(page.locator('#createResultCode')).toHaveValue('OWNERCODE1234567');
+    // Session modal closes; ShareModal opens with "just created" banner
+    await expect(page.locator('#sessionOverlay')).not.toHaveClass(/open/);
+    await expect(page.locator('#shareOverlay')).toHaveClass(/open/);
+    await expect(page.locator('#shareCreatedBanner')).toBeVisible();
   });
 
   test('shows error when API returns 429', async ({ page }) => {
