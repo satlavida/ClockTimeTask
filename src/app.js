@@ -22,7 +22,7 @@ import { initStickyNotes, renderNotes, addNoteAndRender, alignNotes, setNoteFilt
 import { downloadMarkdown } from './logic/export.js';
 
 import { initSessionSwitcher, syncSwitcher } from './ui/components/SessionSwitcher.js';
-import { initSyncStatus, schedulePush, forceSync, refreshSyncDisplay } from './ui/components/SyncStatus.js';
+import { initSyncStatus, schedulePush, forceSync, refreshSyncDisplay, syncConnection } from './ui/components/SyncStatus.js';
 
 export function init() {
   load();
@@ -61,6 +61,7 @@ export function init() {
     refresh();
     syncSwitcher();
     refreshSyncDisplay();
+    syncConnection();
   }
 
   // Settings changes that affect clock geometry

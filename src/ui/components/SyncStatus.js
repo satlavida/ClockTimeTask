@@ -1,67 +1,231 @@
-import { pushSync, pullSync, isCloudSession, getActiveSession, removeSession, setActiveSession } from '../../logic/sessions.js';
+import {
+  pushSync, isCloudSession, getActiveSession,
+  removeSession, setActiveSession, getWSUrl,
+  upsertSession,
+} from '../../logic/sessions.js';
 import { toJSON, loadFromJSON, save } from '../../logic/state.js';
 import { showToast } from '../Toast.js';
 
-// Error backoff ladder (ms): 2s → 4s → 8s → 16s → 30s
-const ERROR_BACKOFF = [2_000, 4_000, 8_000, 16_000, 30_000];
+// Reconnect backoff ladder (ms): 1s → 2s → 4s → 8s → 30s
+const RECONNECT_BACKOFF = [1_000, 2_000, 4_000, 8_000, 30_000];
 
-// Pull interval ladder (ms): 30s → 60s → 120s — grows when server returns no changes
-const PULL_BACKOFF = [30_000, 60_000, 120_000];
+// Push error backoff ladder (ms): 2s → 4s → 8s → 16s → 30s
+const ERROR_BACKOFF = [2_000, 4_000, 8_000, 16_000, 30_000];
 
 let _onStateUpdated  = null;
 let _pushTimer       = null;
-let _state           = 'idle'; // 'idle' | 'syncing' | 'error' | 'offline'
+let _state           = 'idle'; // 'idle' | 'connecting' | 'syncing' | 'synced' | 'error' | 'offline'
 
-// Push side
-let _errorCount      = 0;   // consecutive failures; drives ERROR_BACKOFF index
-let _lastPushedJSON  = null; // JSON of last successfully pushed state; skip push if unchanged
-let _nextRetryMs     = 0;   // delay of the currently-scheduled retry (for the error label)
+// WebSocket state
+let _ws              = null;
+let _wsSessionId     = null;
+let _reconnectTimer  = null;
+let _reconnectCount  = 0;
 
-// Pull side
-let _pullIdleCount   = 0;   // consecutive 204s; drives PULL_BACKOFF index
-let _lastPullTime    = 0;   // ms timestamp of last pull attempt
+// Push state
+let _errorCount      = 0;
+let _lastPushedJSON  = null;
+let _nextRetryMs     = 0;
 
-// Prevents duplicate "session not found" toasts while the user decides
 let _sessionNotFoundToastShown = false;
 
 export function initSyncStatus({ onStateUpdated }) {
   _onStateUpdated = onStateUpdated;
 
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && isCloudSession()) maybeSchedulePull();
+  window.addEventListener('offline', () => {
+    setStatus('offline');
+    disconnectWS(false);
   });
 
-  window.addEventListener('offline', () => setStatus('offline'));
-  window.addEventListener('online',  () => {
+  window.addEventListener('online', () => {
     _errorCount = 0;
-    setStatus('idle');
-    schedulePush(0);
+    if (isCloudSession()) {
+      connectWS();
+    } else {
+      setStatus('idle');
+    }
   });
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && isCloudSession()) {
+      if (!_ws || _ws.readyState !== WebSocket.OPEN) connectWS();
+    }
+  });
+
+  if (isCloudSession()) connectWS();
 }
 
-// Called by app.js after every save()
+// Called from app.js after every save()
 export function schedulePush(delayMs = 2_000) {
   if (!isCloudSession()) return;
   clearTimeout(_pushTimer);
   _pushTimer = setTimeout(doPush, delayMs);
 }
 
-// Force an immediate push + pull, bypassing debounce and pull throttle
+// Called when active session changes (app.js → onSessionSwitch)
+export function syncConnection() {
+  const session = getActiveSession();
+  if (!session || session.type !== 'cloud') {
+    disconnectWS(false);
+    setStatus('idle');
+    return;
+  }
+  if (_wsSessionId === session.id && _ws?.readyState === WebSocket.OPEN) return;
+  disconnectWS(false);
+  connectWS();
+}
+
+// Force an immediate push, bypass debounce
 export function forceSync() {
   if (!isCloudSession()) return;
+  _lastPushedJSON = null;
   clearTimeout(_pushTimer);
-  _lastPullTime = 0; // bypass pull throttle
-  _lastPushedJSON = null; // bypass no-op skip
-  doPush().then(() => doPull());
+  if (!_ws || _ws.readyState !== WebSocket.OPEN) {
+    connectWS();
+  } else {
+    doPush();
+  }
 }
 
-function errorDelay() {
-  return ERROR_BACKOFF[Math.min(_errorCount, ERROR_BACKOFF.length - 1)];
+export function refreshSyncDisplay() {
+  render();
 }
 
-function pullInterval() {
-  return PULL_BACKOFF[Math.min(_pullIdleCount, PULL_BACKOFF.length - 1)];
+// ── WebSocket ─────────────────────────────────────────────────────────────────
+
+function connectWS() {
+  if (_ws && (_ws.readyState === WebSocket.CONNECTING || _ws.readyState === WebSocket.OPEN)) return;
+
+  const session = getActiveSession();
+  if (!session || session.type !== 'cloud') return;
+
+  clearTimeout(_reconnectTimer);
+  setStatus('connecting');
+
+  const ws = new WebSocket(getWSUrl(session.id));
+  _ws = ws;
+  _wsSessionId = session.id;
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type: 'auth', shareCode: session.shareCode }));
+  };
+
+  ws.onmessage = (event) => {
+    let data;
+    try { data = JSON.parse(event.data); } catch (_) { return; }
+
+    if (data.type === 'connected' || data.type === 'sync') {
+      _reconnectCount = 0;
+      applyRemoteState(data);
+    } else if (data.type === 'session_deleted') {
+      handleSessionDeleted();
+    } else if (data.type === 'share_code_revoked') {
+      handleShareRevoked();
+    }
+  };
+
+  ws.onclose = (event) => {
+    if (_ws !== ws) return; // stale handler after disconnect
+    _ws = null;
+
+    // Auth rejections from the DO — don't reconnect
+    if (event.code === 1008) {
+      handleAuthError(event.reason);
+      return;
+    }
+
+    scheduleReconnect();
+  };
+
+  ws.onerror = () => {
+    // onclose fires after onerror; no separate action needed
+  };
 }
+
+function disconnectWS(allowReconnect = true) {
+  clearTimeout(_reconnectTimer);
+  if (_ws) {
+    const ws = _ws;
+    _ws = null;
+    if (!allowReconnect) ws.onclose = null;
+    try { ws.close(); } catch (_) { /* ignore */ }
+  }
+}
+
+function scheduleReconnect() {
+  if (!isCloudSession()) return;
+  const delay = RECONNECT_BACKOFF[Math.min(_reconnectCount, RECONNECT_BACKOFF.length - 1)];
+  _reconnectCount++;
+  setStatus('error');
+  _reconnectTimer = setTimeout(() => {
+    if (isCloudSession()) connectWS();
+  }, delay);
+}
+
+// ── WS message handlers ───────────────────────────────────────────────────────
+
+function applyRemoteState({ encryptedData, version }) {
+  const session = getActiveSession();
+  if (!session) return;
+  try {
+    loadFromJSON(encryptedData);
+    save();
+    _lastPushedJSON = encryptedData;
+    upsertSession({ ...session, version, lastSynced: new Date().toISOString() });
+    _onStateUpdated?.();
+    _sessionNotFoundToastShown = false;
+    setStatus('synced');
+  } catch (e) {
+    console.error('[sync] apply failed', e);
+  }
+}
+
+function handleSessionDeleted() {
+  disconnectWS(false);
+  setStatus('error');
+  _nextRetryMs = 0;
+
+  if (!_sessionNotFoundToastShown) {
+    _sessionNotFoundToastShown = true;
+    const session = getActiveSession();
+    showToast(
+      `Session "${session?.name ?? 'Unknown'}" no longer exists on the server.`,
+      {
+        type: 'error',
+        duration: 15_000,
+        action: {
+          label: 'Remove',
+          onClick: () => {
+            const id = session?.id;
+            if (id && id !== 'local') {
+              removeSession(id);
+              setActiveSession('local');
+              _onStateUpdated?.();
+              _sessionNotFoundToastShown = false;
+              setStatus('idle');
+            }
+          },
+        },
+      }
+    );
+  }
+}
+
+function handleShareRevoked() {
+  disconnectWS(false);
+  setStatus('error');
+  _nextRetryMs = 0;
+  showToast('Sync failed: share code is no longer valid.', { type: 'error', duration: 8_000 });
+}
+
+function handleAuthError(reason) {
+  if (reason === 'session_not_found') { handleSessionDeleted(); return; }
+  if (reason === 'forbidden' || reason === 'share_code_revoked') { handleShareRevoked(); return; }
+  // Unknown auth error — backoff and retry
+  scheduleReconnect();
+}
+
+// ── Push (HTTP PUT) ───────────────────────────────────────────────────────────
 
 async function doPush() {
   if (!isCloudSession()) return;
@@ -78,9 +242,7 @@ async function doPush() {
     if (!result) { setStatus('idle'); return; }
 
     if (result.conflict) {
-      // Version conflict — server is ahead; pull first, then re-push
-      showToast('Remote has newer changes — pulling first…', { type: 'warn', duration: 4_000 });
-      await doPull();
+      // Server is ahead — WS should deliver the update shortly; retry push
       schedulePush(1_000);
       return;
     }
@@ -91,92 +253,28 @@ async function doPush() {
       _onStateUpdated?.();
     }
 
-    _errorCount     = 0;
+    _errorCount = 0;
     _lastPushedJSON = result.stateJSON ?? currentJSON;
     _sessionNotFoundToastShown = false;
     setStatus('synced');
   } catch (err) {
-    handleSyncError(err);
+    handlePushError(err);
   }
 }
 
-function maybeSchedulePull() {
-  if (Date.now() - _lastPullTime < pullInterval()) return;
-  doPull();
-}
-
-async function doPull() {
-  if (!isCloudSession()) return;
-  _lastPullTime = Date.now();
-  setStatus('syncing');
-  try {
-    const result = await pullSync();
-
-    if (!result) {
-      _pullIdleCount++;
-      setStatus('synced');
-      return;
-    }
-
-    _pullIdleCount  = 0;
-    _lastPushedJSON = result.stateJSON;
-    loadFromJSON(result.stateJSON);
-    save();
-    _onStateUpdated?.();
-    _sessionNotFoundToastShown = false;
-    setStatus('synced');
-  } catch (err) {
-    handleSyncError(err);
-  }
-}
-
-function handleSyncError(err) {
+function handlePushError(err) {
   const code = err.message;
 
-  if (code === 'session_not_found') {
-    setStatus('error');
-    _nextRetryMs = 0; // don't auto-retry a dead session
+  if (code === 'session_not_found') { handleSessionDeleted(); return; }
+  if (code === 'forbidden') { handleShareRevoked(); return; }
 
-    if (!_sessionNotFoundToastShown) {
-      _sessionNotFoundToastShown = true;
-      const session = getActiveSession();
-      showToast(
-        `Session "${session?.name ?? 'Unknown'}" no longer exists on the server.`,
-        {
-          type: 'error',
-          duration: 15_000,
-          action: {
-            label: 'Remove',
-            onClick: () => {
-              const id = session?.id;
-              if (id && id !== 'local') {
-                removeSession(id);
-                setActiveSession('local');
-                _onStateUpdated?.();
-                _sessionNotFoundToastShown = false;
-                setStatus('idle');
-              }
-            },
-          },
-        }
-      );
-    }
-    return;
-  }
-
-  if (code === 'forbidden') {
-    setStatus('error');
-    _nextRetryMs = 0;
-    showToast('Sync failed: share code is no longer valid.', { type: 'error', duration: 8_000 });
-    return;
-  }
-
-  // Generic network/server error — backoff and retry
-  _nextRetryMs = errorDelay();
+  _nextRetryMs = ERROR_BACKOFF[Math.min(_errorCount, ERROR_BACKOFF.length - 1)];
   _errorCount++;
   setStatus(navigator.onLine ? 'error' : 'offline');
   if (navigator.onLine) schedulePush(_nextRetryMs);
 }
+
+// ── Render ────────────────────────────────────────────────────────────────────
 
 function setStatus(status) {
   _state = status;
@@ -195,9 +293,9 @@ function render() {
   const forceBtn = el.querySelector('.sync-force-btn');
   el.className = `sync-status ${_state}`;
 
-  if (_state === 'syncing') {
+  if (_state === 'syncing' || _state === 'connecting') {
     dot.className     = 'sync-dot spinning';
-    label.textContent = 'Syncing…';
+    label.textContent = _state === 'connecting' ? 'Connecting…' : 'Syncing…';
     if (forceBtn) forceBtn.classList.add('spinning');
   } else if (_state === 'synced') {
     const session = getActiveSession();
@@ -226,8 +324,4 @@ function relTime(iso) {
   if (diff < 60)   return `${diff}s ago`;
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   return `${Math.floor(diff / 3600)}h ago`;
-}
-
-export function refreshSyncDisplay() {
-  render();
 }
