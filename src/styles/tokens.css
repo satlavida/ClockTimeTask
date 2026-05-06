@@ -1,12 +1,55 @@
 :root {
-  --bg:       #0f0f0f;
-  --surface:  #181818;
-  --surface2: #202020;
-  --border:   #2c2c2c;
-  --text:     #dedede;
-  --dim:      #717171;
-  --muted:    #3a3a3a;
-  --accent:   #F5B731;
-  --red:      #e85555;
-  --r:        6px;
+  /* ── Surfaces ─────────────── */
+  --bg:           #0f0f0f;
+  --surface:      #181818;
+  --surface2:     #202020;
+  --surface3:     #242424;
+
+  /* ── Borders & strokes ────── */
+  --border:       #2c2c2c;
+
+  /* ── Text ─────────────────── */
+  --text:         #dedede;
+  --dim:          #717171;
+  --muted:        #3a3a3a;
+
+  /* ── Accent & status ──────── */
+  --accent:       #F5B731;
+  --accent-hover: #f7c548;
+  --accent-faint: rgba(245,183,49,.08);
+  --accent-border: rgba(245,183,49,.25);
+  --red:          #e85555;
+  --green:        #6EC98C;
+
+  /* ── Border radius ────────── */
+  --r-sm:   4px;
+  --r:      6px;
+  --r-lg:   8px;
+  --r-xl:   12px;
+  --r-pill: 20px;
+
+  /* ── Font sizes ───────────── */
+  --fs-xxs:  9px;
+  --fs-xs:  10px;
+  --fs-sm:  11px;
+  --fs-md:  12px;
+  --fs-base:13px;
+  --fs-lg:  17px;
+  --fs-xl:  20px;
+  --fs-2xl: 22px;
+
+  /* ── Spacing ──────────────── */
+  --sp-1:  4px;
+  --sp-2:  8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+
+  /* ── Shadows ──────────────── */
+  --shadow-modal: 0 24px 80px rgba(0,0,0,.85);
+  --shadow-drop:  0 12px 40px rgba(0,0,0,.7);
+
+  /* ── Overlay ──────────────── */
+  --overlay-bg: rgba(0,0,0,.72);
 }

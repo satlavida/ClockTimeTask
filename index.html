@@ -37,6 +37,10 @@
     </div>
   </div>
 
+  <div id="sidebarPermHint" class="sidebar-perm-hint" hidden>
+    Read-only — controls hidden by session permissions
+  </div>
+
   <div class="sidebar-scroll">
 
     <!-- Mode -->
@@ -392,6 +396,9 @@
       <p class="privacy-p">If AI-assisted features are added in the future (e.g. via OpenRouter), you will be clearly notified before any data leaves your device, and those features will be strictly opt-in.</p>
       <p class="privacy-p privacy-updated">Last updated: May 2025</p>
     </div>
+    <div class="modal-footer">
+      <button class="btn-save" id="btnPrivacyDismiss" style="flex:1">Got it</button>
+    </div>
   </div>
 </div>
 
@@ -404,15 +411,12 @@
     </div>
     <div class="modal-body modal-views">
 
-      <!-- Home: choose create or join -->
+      <!-- Home: session list + create/join actions -->
       <div id="sessionView-home">
-        <div class="session-home-btns">
-          <button class="btn-session-choice" id="btnGoCreate">
-            <span class="choice-icon">＋</span>New session
-          </button>
-          <button class="btn-session-choice" id="btnGoJoin">
-            <span class="choice-icon">→</span>Join session
-          </button>
+        <div id="sessionModalList"></div>
+        <div class="session-home-actions">
+          <button class="btn-session-action" id="btnGoCreate">＋ New session</button>
+          <button class="btn-session-action" id="btnGoJoin">→ Join session</button>
         </div>
       </div>
 
@@ -469,26 +473,6 @@
         </div>
       </div>
 
-      <!-- Success -->
-      <div id="sessionView-success" class="hidden">
-        <p style="font-size:13px;margin-bottom:16px;color:var(--text)">
-          Session created. Save your share code — it won't be shown again.
-        </p>
-        <label class="mini">Session ID</label>
-        <div class="result-row" style="margin-top:4px">
-          <input type="text" id="createResultId" readonly />
-          <button class="btn-copy" id="btnCopySessionId">Copy</button>
-        </div>
-        <label class="mini">Owner Share Code</label>
-        <div class="result-row" style="margin-top:4px">
-          <input type="text" id="createResultCode" readonly />
-          <button class="btn-copy" id="btnCopyShareCode">Copy</button>
-        </div>
-        <div style="margin-top:16px">
-          <button class="btn-save" id="btnSessionDone" style="width:100%">Done</button>
-        </div>
-      </div>
-
     </div>
   </div>
 </div>
@@ -502,6 +486,7 @@
     </div>
     <div class="modal-body">
 
+      <div id="shareCreatedBanner" class="share-created-banner" hidden>Session created — your full-access code is listed below.</div>
       <div class="modal-section-lbl">Existing Share Codes</div>
       <div id="shareCodeList"></div>
 

@@ -30,5 +30,5 @@
   letter-spacing: -.02em;
 }
 
-.task-edit-time-val.start-val { color: #5B9BD5; }
+.task-edit-time-val.start-val { color: var(--text); }
 .task-edit-time-val.end-val   { color: var(--accent); }

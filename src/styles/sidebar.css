@@ -48,3 +48,13 @@
   color: var(--muted);
   margin-bottom: 10px;
 }
+
+.sidebar-perm-hint {
+  font-size: var(--fs-xs);
+  color: var(--dim);
+  letter-spacing: .04em;
+  padding: var(--sp-2) 22px;
+  border-bottom: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  background: var(--accent-faint);
+}

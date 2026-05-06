@@ -3,6 +3,7 @@ export function initPrivacyModal() {
     if (e.target.id === 'privacyOverlay') closePrivacy();
   });
   document.getElementById('btnClosePrivacy').addEventListener('click', closePrivacy);
+  document.getElementById('btnPrivacyDismiss').addEventListener('click', closePrivacy);
 }
 
 export function openPrivacy() {

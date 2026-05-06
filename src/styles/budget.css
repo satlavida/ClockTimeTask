@@ -1,1 +1,7 @@
+#budgetNames {
+  max-height: 150px;
+  overflow-y: auto;
+  margin-bottom: var(--sp-2);
+}
+
 #budgetNames input { margin-bottom: 6px; }

@@ -37,6 +37,10 @@ export function init() {
     document.querySelectorAll('[data-perm]').forEach(el => {
       el.hidden = !perms.includes(el.dataset.perm);
     });
+    const permHint = document.getElementById('sidebarPermHint');
+    if (permHint) {
+      permHint.hidden = !(isCloudSession() && !perms.includes('edit_tasks'));
+    }
   }
 
   // Called after any task/state change that requires full re-render
