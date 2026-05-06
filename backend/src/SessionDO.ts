@@ -192,10 +192,12 @@ export class SessionDO extends DurableObject<Env> {
 
     await this.store(updated);
 
-    // Broadcast to all other connected clients; skip the pusher's own connection
+    // Broadcast to ALL connected clients, including the pusher's own WS connections.
+    // Skipping by share code would block clients that opened the same link in a second
+    // tab (same share code). The pusher's own tab handles the echo idempotently via
+    // the _lastPushedJSON check in SyncStatus.js.
     this.broadcast(
       { type: 'sync', encryptedData: updated.encryptedData, version: updated.version },
-      shareCode,
     );
 
     return Response.json({ encryptedData: updated.encryptedData, version: updated.version });

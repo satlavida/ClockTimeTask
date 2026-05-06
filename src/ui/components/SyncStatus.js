@@ -177,6 +177,11 @@ function applyRemoteState({ encryptedData, version }) {
     _lastPushedJSON = encryptedData;
     upsertSession({ ...session, version, lastSynced: new Date().toISOString() });
     _onStateUpdated?.();
+    // Clear any push timer queued by the refresh above — remote state has already
+    // been saved, so there's nothing local to push. Without this, _pushTimer stays
+    // non-null for 2 s and blocks the next incoming sync broadcast.
+    clearTimeout(_pushTimer);
+    _pushTimer = null;
     _sessionNotFoundToastShown = false;
     setStatus('synced');
   } catch (e) {
@@ -232,6 +237,7 @@ function handleAuthError(reason) {
 // ── Push (HTTP PUT) ───────────────────────────────────────────────────────────
 
 async function doPush() {
+  _pushTimer = null;
   if (!isCloudSession()) return;
 
   const currentJSON = toJSON();
