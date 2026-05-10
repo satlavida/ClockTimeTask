@@ -25,6 +25,7 @@ let _reconnectCount  = 0;
 // Push state
 let _errorCount      = 0;
 let _lastPushedJSON  = null;
+let _inflightJSON    = null; // state currently being pushed (in-flight HTTP PUT)
 let _nextRetryMs     = 0;
 
 let _sessionNotFoundToastShown = false;
@@ -40,7 +41,7 @@ export function initSyncStatus({ onStateUpdated }) {
   window.addEventListener('online', () => {
     _errorCount = 0;
     if (isCloudSession()) {
-      connectWS();
+      forceSync(); // push any unsent local changes before applying server state
     } else {
       setStatus('idle');
     }
@@ -71,6 +72,8 @@ export function syncConnection() {
     return;
   }
   if (_wsSessionId === session.id && _ws?.readyState === WebSocket.OPEN) return;
+  _reconnectCount = 0;
+  _sessionNotFoundToastShown = false;
   disconnectWS(false);
   connectWS();
 }
@@ -80,10 +83,12 @@ export function forceSync() {
   if (!isCloudSession()) return;
   _lastPushedJSON = null;
   clearTimeout(_pushTimer);
+  // Always push via HTTP — it's independent of the WS connection.
+  // If the WS is closed, reconnect in parallel; the 'connected' echo will
+  // arrive after our push has already stored the local state on the server.
+  doPush();
   if (!_ws || _ws.readyState !== WebSocket.OPEN) {
     connectWS();
-  } else {
-    doPush();
   }
 }
 
@@ -116,10 +121,12 @@ function connectWS() {
 
     if (data.type === 'connected' || data.type === 'sync') {
       _reconnectCount = 0;
-      // For 'sync' broadcasts from other clients: don't overwrite local state
-      // when we have a pending push — our changes should win (last-writer-wins).
-      // 'connected' is the initial state load and always applies.
-      if (data.type === 'sync' && _pushTimer !== null) return;
+      // Skip if a push is in-flight — its WS broadcast will arrive next and
+      // carry the correct (already-stored) state. Applying stale server state
+      // now would overwrite the in-flight payload and trigger a spurious refresh.
+      if (_inflightJSON !== null) return;
+      // Discard the echo of our own most-recently-pushed state.
+      if (data.type === 'sync' && data.encryptedData === _lastPushedJSON) return;
       applyRemoteState(data);
     } else if (data.type === 'session_deleted') {
       handleSessionDeleted();
@@ -246,9 +253,11 @@ async function doPush() {
     return;
   }
 
+  _inflightJSON = currentJSON;
   setStatus('syncing');
   try {
     const result = await pushSync(currentJSON);
+    _inflightJSON = null;
     if (!result) { setStatus('idle'); return; }
 
     if (result.stateJSON) {
@@ -262,6 +271,7 @@ async function doPush() {
     _sessionNotFoundToastShown = false;
     setStatus('synced');
   } catch (err) {
+    _inflightJSON = null;
     handlePushError(err);
   }
 }

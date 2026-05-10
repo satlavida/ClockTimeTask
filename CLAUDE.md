@@ -66,9 +66,10 @@ src/
 │   └── *.css            ← one file per component/section
 └── ui/
     ├── components/
-    │   ├── TaskItem.js        ← createTaskItem(task, callbacks) → DOM element
+    │   ├── TaskItem.js        ← createTaskItem(task, permissions, callbacks) → DOM element; hides edit/delete/reorder when session lacks edit_tasks/reorder_tasks
+    │   ├── SessionList.js     ← shared session-row renderer used by SessionSwitcher and SessionModal
     │   ├── SessionSwitcher.js ← sidebar chip: list sessions, switch, share, remove
-    │   └── SyncStatus.js      ← now-board badge: syncing/synced/offline/error + backoff logic
+    │   └── SyncStatus.js      ← WebSocket client: real-time sync, reconnect backoff, status badge (syncing/synced/offline/error)
     ├── sections/
     │   ├── ModePanel.js, StartTimePanel.js, FreeAddPanel.js
     │   ├── BudgetPanel.js, TaskList.js, StatsFooter.js
@@ -114,13 +115,18 @@ Each session has a `type: 'local' | 'cloud'`. The local session is always presen
 
 ### Encryption
 
-The passphrase is derived from the share code — it is **never shown to the user** and **never sent to the server**. Key derivation: `PBKDF2(password: shareCode, salt: sessionId, iterations: 100_000, hash: SHA-256, keylen: 256)`. Encryption: `AES-GCM-256` with a random 12-byte IV prepended to the ciphertext, base64-encoded. The derived `CryptoKey` lives only in a module-level `Map` in `sessions.js` — never in localStorage.
+Client-side encryption was removed when the backend migrated to Durable Objects. Session data is stored as **plaintext JSON** in the DO. The API field is still named `encryptedData` for historical reasons but contains raw state JSON. The share code is used only for authentication (bearer token), not for key derivation.
+
+### Conflict resolution
+
+Last-writer-wins. The DO serialises all writes so there are no torn updates. There is no version-conflict (409) path. CRDT (`crdt.ts`, Yjs) was removed — it was never functional: every push sent an empty state vector, making `mergeUpdate` a no-op.
 
 ### Sync behaviour
 
-- **Push**: debounced 2s after every `save()`. Skips entirely if the current state JSON matches the last successfully pushed JSON (no-op calls produce zero API hits).
-- **Pull**: triggered on tab focus, throttled by an adaptive interval that starts at 30s and backs off to 60s → 120s after consecutive 204 (no-change) responses.
-- **Error backoff**: consecutive failures grow the push retry delay: `2s → 4s → 8s → 16s → 30s`. Resets on any successful sync or when the browser comes back online.
+- **Push**: debounced 2s after every `save()`. Skips entirely if the current state JSON matches `_lastPushedJSON` (no-op calls produce zero API hits). `_pushTimer` is cleared to `null` at the start of `doPush()` so a stale handle can't permanently block future syncs.
+- **Real-time receive**: `SyncStatus.js` opens a WebSocket to the Durable Object on session join. The DO broadcasts every `PUT /sync` to **all** connected clients (including the pusher's own connections). The client skips any WS message (`connected` or `sync`) while a push is in-flight (`_inflightJSON !== null`) — the push's own broadcast will arrive next with the authoritative state. `sync` echoes of `_lastPushedJSON` are also discarded. `applyRemoteState()` clears `_pushTimer` after applying state so the 2-second debounce window doesn't block incoming broadcasts.
+- **Tab focus recovery**: `visibilitychange` reconnects the WS if it closed while the tab was hidden. On `online` event, `forceSync()` is called (not just `connectWS()`) so unsent local changes are pushed before server state is applied.
+- **Error backoff**: consecutive push failures grow the retry delay: `2s → 4s → 8s → 16s → 30s`. Resets on any successful sync or when the browser comes back online.
 - **Settings** (`clock24h`, `fitClock`, `soundAlerts`, `showTimeRemaining`) are **never synced** — they remain device-local for all participants including the owner.
 
 ### Permissions
@@ -144,7 +150,7 @@ Source in `backend/src/`, config at `backend/wrangler.toml`. Runtime: Cloudflare
 ```bash
 npm run backend:dev     # local worker at http://localhost:8787
 npm run backend:deploy  # deploy to Cloudflare Workers
-cd backend && npm test  # run 21 vitest API tests (in-memory KV mock)
+cd backend && npm test  # run vitest API tests (in-memory KV mock)
 ```
 
 Install backend deps separately: `npm install --prefix backend`
@@ -153,22 +159,20 @@ Install backend deps separately: `npm install --prefix backend`
 
 ```
 backend/src/
-├── index.ts          ← Hono app, mounts all routes
+├── index.ts          ← Hono app, mounts /api/sessions route + forwards DO routes
 ├── types.ts          ← SessionRecord, MetaRecord, Permission, Env
-└── lib/
-│   ├── kv.ts         ← typed KV helpers (getSession, putSession, getMeta, etc.)
-│   ├── auth.ts       ← validateShareCode, extractShareCode, randomAlphanumeric
-│   ├── sweep.ts      ← lazy 24h session expiry (runs at most once per hour)
-│   └── crdt.ts       ← yjs helpers: mergeUpdate, emptyState
+├── SessionDO.ts      ← Durable Object: session state, WebSocket hub, all per-session routes
+│                       (init, join, sync PUT, share-codes CRUD, delete, WebSocket upgrade)
+├── lib/
+│   ├── kv.ts         ← typed KV helpers (getMeta, putMeta — session count tracking)
+│   └── auth.ts       ← validateShareCode, getPermissions, extractShareCode, randomAlphanumeric
 └── routes/
-    ├── sessions.ts   ← POST /sessions, POST /:id/join, DELETE /:id
-    ├── sync.ts       ← GET /:id/sync, PUT /:id/sync
-    └── shareCodes.ts ← GET/POST/DELETE /:id/share-codes
+    └── sessions.ts   ← POST /sessions only (creates DO, increments KV meta counter)
 ```
 
 ### API summary
 
-All routes under `/api/sessions`. Auth via `Authorization: Bearer <shareCode>` (omitted only for `POST /sessions`). Session cap: 50. Sessions expire after 24h of inactivity.
+All routes under `/api/sessions`. Auth via `Authorization: Bearer <shareCode>` (omitted only for `POST /sessions`). Session cap: 50. Sessions expire after 24h via a Durable Object alarm set at init — no polling sweep.
 
 ## Testing
 
@@ -181,6 +185,8 @@ npm run screenshots   # screenshot sweep only → tests/screenshots/*.png
 ```
 
 Screenshots are named `NN-description.png`. Run `npm run screenshots` after any visual change to regenerate for AI review.
+
+E2E spec files in `tests/e2e/`: `tasks.spec.ts`, `session.spec.ts`, `permissions.spec.ts`, `sync-backoff.spec.ts`, `sync-payload.spec.ts`, `taskitem-permissions.spec.ts`, `session-list.spec.ts`, `session-modal-ux.spec.ts`, `session-ux-02.spec.ts`, `join-flow.spec.ts`, `link-join.spec.ts`, `screenshots.spec.ts`.
 
 ## Design language
 

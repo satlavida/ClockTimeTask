@@ -290,8 +290,12 @@ export class SessionDO extends DurableObject<Env> {
       try { ws.close(1001, 'session_deleted'); } catch (_) { /* ignore */ }
     }
 
+    await this.ctx.storage.deleteAlarm();
     await this.ctx.storage.deleteAll();
     this._session = null;
+
+    const meta = await getMeta(this.env.SESSIONS);
+    await putMeta(this.env.SESSIONS, { ...meta, sessionCount: Math.max(0, meta.sessionCount - 1) });
 
     return new Response(null, { status: 204 });
   }
