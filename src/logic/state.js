@@ -7,7 +7,7 @@ export const S = {
   budget: { inputMode: 'duration', hours: 2, mins: 0, endTimeStr: null, count: 3 },
   tasks: [],
   notes: [],
-  settings: { showTimeRemaining: true, clock24h: false, fitClock: false, soundAlerts: false },
+  settings: { showTimeRemaining: true, clock24h: false, fitClock: false, soundAlerts: false, linearView: false },
 };
 
 function getStateKey() {

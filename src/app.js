@@ -19,6 +19,7 @@ import { initClockSVG, buildFace, redraw, tickHands } from './ui/clock/ClockSVG.
 import { initPopover } from './ui/clock/Popover.js';
 import { updateBoard } from './ui/NowBoard.js';
 import { initStickyNotes, renderNotes, addNoteAndRender, alignNotes, setNoteFilter } from './ui/StickyNotes.js';
+import { initLinearTicker, renderTicker } from './ui/LinearTicker.js';
 import { downloadMarkdown } from './logic/export.js';
 
 import { initSessionSwitcher, syncSwitcher } from './ui/components/SessionSwitcher.js';
@@ -50,6 +51,7 @@ export function init() {
     updateStats();
     updateBoard();
     renderNotes();
+    renderTicker();
     applyPermissions();
     if (opts.openEdit) openTaskEdit(opts.openEdit);
     schedulePush();
@@ -68,9 +70,18 @@ export function init() {
     syncConnection();
   }
 
+  function applyViewMode() {
+    const linear = S.settings.linearView;
+    document.querySelector('.clock-wrap').hidden   = linear;
+    document.getElementById('notesLayer').hidden   = linear;
+    document.getElementById('linearTicker').hidden = !linear;
+    if (!linear) { buildFace(); redraw(); }
+  }
+
   // Settings changes that affect clock geometry
   function onSettingChanged(key) {
     if (key === 'clock24h' || key === 'fitClock') { buildFace(); redraw(); }
+    if (key === 'linearView') applyViewMode();
     updateBoard();
   }
 
@@ -120,6 +131,12 @@ export function init() {
 
   initPopover();
 
+  document.getElementById('btnSidebarToggle')?.addEventListener('click', () => {
+    const sidebar = document.querySelector('.sidebar');
+    const isOpen  = sidebar.classList.toggle('sidebar--open');
+    document.getElementById('btnSidebarToggle').setAttribute('aria-expanded', String(isOpen));
+  });
+
   document.getElementById('btnOpenSettings').addEventListener('click', openSettings);
   document.getElementById('btnOpenPrivacy').addEventListener('click', openPrivacy);
   document.getElementById('btnOpenSession').addEventListener('click', openSessionModal);
@@ -154,10 +171,18 @@ export function init() {
 
   initStickyNotes({ getTasks: () => S.tasks });
 
+  document.getElementById('setLinearView').checked = S.settings.linearView ?? false;
+  initLinearTicker({ onTaskEdit: id => refresh({ openEdit: id }) });
+  applyViewMode();
+
   syncSwitcher();
   refreshSyncDisplay();
 
-  setInterval(() => { tickHands(); updateBoard(); }, 1000);
+  setInterval(() => {
+    if (!S.settings.linearView) tickHands();
+    updateBoard();
+    renderTicker();
+  }, 1000);
   tickHands();
   updateBoard();
 
