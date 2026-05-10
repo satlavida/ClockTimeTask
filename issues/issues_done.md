@@ -72,3 +72,43 @@ Manual `DELETE /sessions` did not decrement `sessionCount` in KV (only the alarm
 **File:** `backend/src/SessionDO.ts` — `handleDelete()`  
 After manual delete, the 24h alarm still fired, ran `deleteAll()` (no-op), and decremented `sessionCount` again — double-decrement.  
 **Fix:** Added `await this.ctx.storage.deleteAlarm()` before `deleteAll()`.
+
+---
+
+## Debounce-window sync overwrite (data loss)
+**File:** `src/ui/components/SyncStatus.js` — `ws.onmessage`  
+Inbound `sync` messages during the 2s debounce window before a pending push called `applyRemoteState`, overwriting local edits and cancelling `_pushTimer`. The `_inflightJSON` guard only covered the HTTP in-flight window.  
+**Fix:** Added `if (_pushTimer !== null) return` guard for `sync` messages — remote changes in the debounce window are dropped; local edit wins on push (true LWW). `connected` still applies regardless.
+
+---
+
+## `connecting` state has no CSS rule (cosmetic)
+**File:** `src/styles/sync-status.css`  
+`SyncStatus.js` sets `el.className = 'sync-status connecting'` but no `.sync-status.connecting` rule existed. Container was visually identical to `idle`.  
+**Fix:** Added `.sync-status.connecting` rule.
+
+---
+
+## `forceSync()` doesn't pull from server when WS is open
+**File:** `src/ui/components/SyncStatus.js` — `forceSync()`  
+When the WS was already open, `forceSync()` pushed but didn't refresh state from server. No `connected` message would arrive to deliver latest server state.  
+**Fix:** `forceSync()` now disconnects and reconnects WS unconditionally so the `connected` message always delivers latest server state alongside the push.
+
+---
+
+## `MetaRecord.lastSweep` dead code (cosmetic)
+**Files:** `backend/src/types.ts`, `backend/src/lib/kv.ts`  
+`lastSweep` was written by `sweep.ts` which was deleted. Field was still declared in `MetaRecord` and initialised in `getMeta` default but nothing read or wrote it.  
+**Fix:** Removed `lastSweep` from `MetaRecord` and from `getMeta` default.
+
+---
+
+## Plain-text data privacy disclosure missing
+**File:** `index.html` — privacy modal  
+Encryption was removed. Session state is stored as plain JSON in Cloudflare Durable Objects for up to 24h. The in-app privacy modal claimed "nothing is transmitted to any server."  
+**Fix:** Updated privacy modal to clearly distinguish local vs cloud sessions, disclose unencrypted storage on Cloudflare, and note the 24h auto-deletion.
+
+---
+
+## E2E suite verified against sync changes
+All 198 tests pass after the LWW rewrite, 2026-05-10 echo-dedup changes, debounce-window guard, and forceSync WS reconnect fix. Key areas: `sync-backoff.spec.ts`, `sync-payload.spec.ts`, session switch resets, `forceSync`, `online` event.
