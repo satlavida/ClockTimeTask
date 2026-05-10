@@ -391,10 +391,10 @@
       <button class="modal-close" id="btnClosePrivacy">×</button>
     </div>
     <div class="modal-body">
-      <p class="privacy-p">ClockTask stores all your data — tasks, notes, and settings — exclusively in your browser's <strong>localStorage</strong>. Nothing is transmitted to any server.</p>
-      <p class="privacy-p">No analytics, no tracking, no cookies, no accounts. The app works entirely offline once loaded.</p>
+      <p class="privacy-p"><strong>Local sessions</strong> — tasks, notes, and settings are stored exclusively in your browser's <strong>localStorage</strong>. Nothing is transmitted to any server.</p>
+      <p class="privacy-p"><strong>Cloud sessions</strong> — when you create or join a cloud session, your task and note data is transmitted to and stored as <strong>unencrypted JSON</strong> on Cloudflare's infrastructure (Durable Objects). Cloud session data is automatically deleted after <strong>24 hours of inactivity</strong>. The share code authenticates access but does not encrypt the data.</p>
+      <p class="privacy-p">No analytics, no tracking, no cookies, no accounts. Settings (clock mode, sound alerts) are always device-local and never synced.</p>
       <p class="privacy-p">The <strong>Export</strong> feature generates a Markdown file downloaded directly to your device — nothing is uploaded anywhere.</p>
-      <p class="privacy-p">If AI-assisted features are added in the future (e.g. via OpenRouter), you will be clearly notified before any data leaves your device, and those features will be strictly opt-in.</p>
       <p class="privacy-p privacy-updated">Last updated: May 2025</p>
     </div>
     <div class="modal-footer">
