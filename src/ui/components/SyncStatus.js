@@ -87,9 +87,11 @@ export function forceSync() {
   // If the WS is closed, reconnect in parallel; the 'connected' echo will
   // arrive after our push has already stored the local state on the server.
   doPush();
-  if (!_ws || _ws.readyState !== WebSocket.OPEN) {
-    connectWS();
-  }
+  // Reconnect WS so the 'connected' message delivers latest server state.
+  // If WS is already open, close and reopen it; connectWS() is a no-op if
+  // it sees the session hasn't changed, so we must disconnect first.
+  disconnectWS(false);
+  connectWS();
 }
 
 export function refreshSyncDisplay() {
@@ -125,8 +127,10 @@ function connectWS() {
       // carry the correct (already-stored) state. Applying stale server state
       // now would overwrite the in-flight payload and trigger a spurious refresh.
       if (_inflightJSON !== null) return;
-      // Discard the echo of our own most-recently-pushed state.
-      if (data.type === 'sync' && data.encryptedData === _lastPushedJSON) return;
+      if (data.type === 'sync') {
+        if (data.encryptedData === _lastPushedJSON) return; // echo of our own push
+        if (_pushTimer !== null) return;                    // local edit pending — our push wins
+      }
       applyRemoteState(data);
     } else if (data.type === 'session_deleted') {
       handleSessionDeleted();

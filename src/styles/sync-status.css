@@ -33,6 +33,8 @@
   animation: sync-spin 1s linear infinite;
 }
 
+.sync-status.connecting { color: var(--dim); }
+
 @keyframes sync-spin {
   0%   { opacity: 1; }
   50%  { opacity: .3; }

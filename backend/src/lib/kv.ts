@@ -5,7 +5,7 @@ const META_KEY = 'meta';
 export async function getMeta(kv: KVNamespace): Promise<MetaRecord> {
   const raw = await kv.get(META_KEY);
   if (raw) return JSON.parse(raw) as MetaRecord;
-  return { sessionCount: 0, lastSweep: new Date(0).toISOString() };
+  return { sessionCount: 0 };
 }
 
 export async function putMeta(kv: KVNamespace, meta: MetaRecord): Promise<void> {

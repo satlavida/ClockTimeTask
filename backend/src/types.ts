@@ -24,7 +24,6 @@ export type SessionRecord = {
 
 export type MetaRecord = {
   sessionCount: number;
-  lastSweep: string;
 };
 
 export type Env = {
