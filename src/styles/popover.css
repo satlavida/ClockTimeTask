@@ -26,3 +26,24 @@
 }
 
 .pop-val { color: var(--text); font-variant-numeric: tabular-nums; font-size: 11px; }
+
+/* Touch popover: centered overlay */
+#popoverBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 199;
+  display: none;
+}
+
+#popoverBackdrop.visible { display: block; }
+
+#popover.touch-mode {
+  position: fixed;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  min-width: 200px;
+  padding: 16px 18px;
+  z-index: 200;
+}

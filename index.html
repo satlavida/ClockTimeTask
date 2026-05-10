@@ -35,6 +35,7 @@
         </div>
       </div>
     </div>
+    <button class="sidebar-toggle-btn" id="btnSidebarToggle" aria-label="Planning controls" aria-expanded="false">☰ Plan</button>
   </div>
 
   <div id="sidebarPermHint" class="sidebar-perm-hint" hidden>
@@ -211,6 +212,12 @@
   <!-- ── Sticky notes layer ───────────────────────── -->
   <div id="notesLayer" class="notes-layer"></div>
 
+  <!-- ── Mobile notes list (phone only) ───────────── -->
+  <div id="mobileNotesList" class="mobile-notes-list" hidden></div>
+
+  <!-- ── Linear ticker (optional view) ────────────── -->
+  <div id="linearTicker" class="linear-ticker" hidden></div>
+
   <!-- ── Clock ─────────────────────────────────────── -->
   <div class="clock-wrap">
   <svg id="clockSvg" viewBox="0 0 500 500">
@@ -296,6 +303,17 @@
         </div>
         <label class="tog">
           <input type="checkbox" id="setFitClock" />
+          <div class="tog-track"></div>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-name">Linear ticker</div>
+          <div class="setting-desc">Replace the clock with a scrollable task timeline — past, current, and upcoming</div>
+        </div>
+        <label class="tog">
+          <input type="checkbox" id="setLinearView" />
           <div class="tog-track"></div>
         </label>
       </div>
@@ -516,6 +534,29 @@
       </div>
 
       <div class="session-error" id="shareError" hidden style="margin-top:8px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Note Edit Modal (mobile) ───────────────────── -->
+<div class="modal-overlay" id="noteEditOverlay">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title">Edit Note</div>
+      <button class="modal-close" id="btnCloseNoteEdit">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section-lbl">Task</div>
+      <select id="neTaskSelect" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:inherit;font-size:12px;padding:8px 10px;outline:none;cursor:pointer">
+        <option value="">Untagged</option>
+      </select>
+      <div class="modal-section-lbl" style="margin-top:16px">Note</div>
+      <textarea id="neText" rows="5" placeholder="Note…" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:inherit;font-size:13px;font-weight:300;line-height:1.55;padding:10px 12px;resize:vertical;outline:none;box-sizing:border-box"></textarea>
+    </div>
+    <div class="modal-footer" style="gap:8px;padding-bottom:20px">
+      <button class="btn-cancel" id="btnDeleteNote" style="flex:none;padding:9px 14px;color:var(--dim)">Delete</button>
+      <button class="btn-cancel" id="btnCancelNoteEdit">Cancel</button>
+      <button class="btn-save"   id="btnSaveNoteEdit">Save</button>
     </div>
   </div>
 </div>

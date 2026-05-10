@@ -4,23 +4,124 @@ import { addNote, delNote, updateNoteText, updateNoteTask, moveNote } from '../l
 let layer = null;
 let filterTaskId = null;
 let getTaskList = () => [];
+let _editingNoteId = null;
+
+function isPhone() {
+  return window.matchMedia('(max-width: 480px)').matches;
+}
 
 export function initStickyNotes({ getTasks }) {
   getTaskList = getTasks;
   layer = document.getElementById('notesLayer');
+
+  // Note edit modal (used on phone)
+  document.getElementById('noteEditOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('noteEditOverlay')) _closeNoteEdit();
+  });
+  document.getElementById('btnCloseNoteEdit').addEventListener('click', _closeNoteEdit);
+  document.getElementById('btnCancelNoteEdit').addEventListener('click', _closeNoteEdit);
+  document.getElementById('btnSaveNoteEdit').addEventListener('click', _saveNoteEdit);
+  document.getElementById('btnDeleteNote').addEventListener('click', _deleteNoteEdit);
+
   renderNotes();
+}
+
+function _openNoteEdit(noteId) {
+  const note = S.notes.find(n => n.id === noteId);
+  if (!note) return;
+  _editingNoteId = noteId;
+
+  const tasks = getTaskList();
+  const sel = document.getElementById('neTaskSelect');
+  sel.innerHTML = '<option value="">Untagged</option>' +
+    tasks.map(t => `<option value="${t.id}" ${note.taskId === t.id ? 'selected' : ''}>${_esc(t.name)}</option>`).join('');
+
+  document.getElementById('neText').value = note.text || '';
+  document.getElementById('noteEditOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('neText').focus(), 50);
+}
+
+function _saveNoteEdit() {
+  if (!_editingNoteId) return;
+  updateNoteText(_editingNoteId, document.getElementById('neText').value);
+  updateNoteTask(_editingNoteId, document.getElementById('neTaskSelect').value || null);
+  _closeNoteEdit();
+  renderNotes();
+}
+
+function _deleteNoteEdit() {
+  if (!_editingNoteId) return;
+  delNote(_editingNoteId);
+  _closeNoteEdit();
+  renderNotes();
+}
+
+function _closeNoteEdit() {
+  _editingNoteId = null;
+  document.getElementById('noteEditOverlay').classList.remove('open');
 }
 
 export function renderNotes() {
   if (!layer) return;
-  layer.innerHTML = '';
+  if (isPhone()) { _renderMobileNotesList(); return; }
 
+  layer.innerHTML = '';
   const visible = filterTaskId
     ? S.notes.filter(n => n.taskId === filterTaskId)
     : S.notes;
 
   visible.forEach(note => layer.appendChild(_createNoteEl(note)));
   _syncFilterSelect();
+}
+
+function _renderMobileNotesList() {
+  const listEl = document.getElementById('mobileNotesList');
+  if (!listEl) return;
+  listEl.removeAttribute('hidden');
+  listEl.innerHTML = '';
+  layer.innerHTML = '';
+
+  const tasks   = getTaskList();
+  const visible = filterTaskId
+    ? S.notes.filter(n => n.taskId === filterTaskId)
+    : S.notes;
+
+  if (!visible.length) return;
+
+  const heading = document.createElement('div');
+  heading.className = 'mobile-notes-heading';
+  heading.textContent = 'Notes';
+  listEl.appendChild(heading);
+
+  visible.forEach(note => {
+    const task = tasks.find(t => t.id === note.taskId);
+    const item = document.createElement('div');
+    item.className = 'mobile-note-item';
+    if (task?.color) item.style.setProperty('--note-item-accent', task.color);
+
+    const dot = document.createElement('div');
+    dot.className = 'mobile-note-dot';
+
+    const body = document.createElement('div');
+    body.className = 'mobile-note-body';
+
+    const textEl = document.createElement('div');
+    textEl.className = 'mobile-note-text' + (note.text ? '' : ' empty');
+    textEl.textContent = note.text || 'Empty note';
+    body.appendChild(textEl);
+
+    if (task) {
+      const lbl = document.createElement('div');
+      lbl.className = 'mobile-note-task';
+      lbl.textContent = task.name;
+      body.appendChild(lbl);
+    }
+
+    item.appendChild(dot);
+    item.appendChild(body);
+    item.addEventListener('click', () => _openNoteEdit(note.id));
+    listEl.appendChild(item);
+  });
 }
 
 export function setNoteFilter(taskId) {

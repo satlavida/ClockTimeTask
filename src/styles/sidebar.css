@@ -49,6 +49,8 @@
   margin-bottom: 10px;
 }
 
+.sidebar-toggle-btn { display: none; }
+
 .sidebar-perm-hint {
   font-size: var(--fs-xs);
   color: var(--dim);
