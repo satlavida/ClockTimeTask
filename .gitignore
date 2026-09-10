@@ -4,3 +4,8 @@ tests/screenshots/
 tests/test-results/
 backend/node_modules/
 backend/.wrangler/
+.DS_Store
+test-results/
+.env
+.env.*
+.dev.vars
